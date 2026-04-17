@@ -11,6 +11,13 @@ Jedini alat koji vam je neophodan da iskoristite starter kit je **Docker**.
 Za Windows: [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/)
 Za Linux: [Docker Engine](https://docs.docker.com/engine/install/)
 
+(Samo za Windows) Komande:
+```powershell
+git config core.autocrlf false
+git rm --cached -r .
+git reset --hard
+```
+podešavaju kako rade line endings da bi Linux kontejneri mogli da pravilno pročitaju fajl.
 
 Komanda:
 ```bash
