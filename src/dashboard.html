@@ -355,16 +355,6 @@
                     <!-- Network KPI Overview -->
                     <div class="card card-visitors">
                         <div class="card-title">Network KPI Overview</div>
-                        <div class="metric-grid">
-                            <div class="metric-item">
-                                <div class="metric-label">Active Meters</div>
-                                <div class="metric-value" id="numActiveMeters">-</div>
-                            </div>
-                            <div class="metric-item">
-                                <div class="metric-label">Down Meters</div>
-                                <div class="metric-value" id="numDownMeters">-</div>
-                            </div>
-                        </div>
                     </div>
 
                 </div>
@@ -378,17 +368,26 @@
                     <div class="placeholder"></div>
                 </div>
 
-                <div class="card card-bottom">
-                    <div class="card-title">Audience by Age</div>
-                    <div class="placeholder"></div>
-                </div>
-
-                <div class="card card-bottom">
-                    <div class="card-title">Network Effectiveness</div>
-                    <div class="effectiveness-wrap">
-                        <div class="pie-wrap">
-                            <div class="pie-chart" id="genderPie"></div>
-                            <div class="pie-center-text" id="genderPercentage">-</div>
+                <div class="card card-bottom" style="flex:2; display:flex; flex-direction:row; gap:16px;">
+                    <div style="flex:1; display:flex; flex-direction:column;">
+                        <div class="card-title">Network Effectiveness</div>
+                        <div class="metric-grid">
+                            <div class="metric-item" style="background:#f2c94c;">
+                                <div class="metric-label" style="color:#555;">Active Meters</div>
+                                <div class="metric-value" id="numActiveMeters" style="color:#fff;">-</div>
+                            </div>
+                            <div class="metric-item" style="background:#555;">
+                                <div class="metric-label" style="color:#ccc;">Down Meters</div>
+                                <div class="metric-value" id="numDownMeters" style="color:#fff;">-</div>
+                            </div>
+                        </div>
+                    </div>
+<div style="flex:1; display:flex; flex-direction:column;">
+                        <div class="effectiveness-wrap">
+                            <div class="pie-wrap">
+                                <div class="pie-chart" id="genderPie"></div>
+                                <div class="pie-center-text" id="genderPercentage">-</div>
+                            </div>
                         </div>
                     </div>
                 </div>
