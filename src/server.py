@@ -48,34 +48,19 @@ def get_dashboard_payload(conn):
     if latest_snapshot is None:
         return FALLBACK_DASHBOARD
 
-    cur = conn.cursor()
-    try:
-        cur.execute(
-            f'''
-            SELECT
-                SUM(CASE WHEN Status = 'OK' THEN 1 ELSE 0 END) AS NumActiveMeters,
-                SUM(CASE WHEN Status = 'DOWN' THEN 1 ELSE 0 END) AS NumDownMeters
-            FROM {HISTORY_TABLE}
-            WHERE SnapshotDate = %s
-            ''',
-            (latest_snapshot,)
-        )
-        row = cur.fetchone()
-        if not row:
-            return FALLBACK_DASHBOARD
+    up_payload = get_meter_history(conn, status='OK', snapshot_date=latest_snapshot, page=1, page_size=1)
+    down_payload = get_meter_history(conn, status='DOWN', snapshot_date=latest_snapshot, page=1, page_size=1)
 
-        active = int(row[0] or 0)
-        down = int(row[1] or 0)
-        total = active + down
-        effectiveness = round(active / total, 4) if total else 0.0
+    active = int(up_payload.get('totalItems', 0) or 0)
+    down = int(down_payload.get('totalItems', 0) or 0)
+    total = active + down
+    effectiveness = round(active / total, 4) if total else 0.0
 
-        return {
-            'NumActiveMeters': active,
-            'NumDownMeters': down,
-            'NetworkEffectivnessPercentage': effectiveness,
-        }
-    finally:
-        cur.close()
+    return {
+        'NumActiveMeters': active,
+        'NumDownMeters': down,
+        'NetworkEffectivnessPercentage': effectiveness,
+    }
 
 
 def get_meter_history(conn, status=None, snapshot_date=None, page=1, page_size=50):
