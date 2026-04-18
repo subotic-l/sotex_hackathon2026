@@ -395,45 +395,7 @@
 
     </div>
 
-    <script>
-        async function loadDashboardData() {
-            const activeEl = document.getElementById('numActiveMeters');
-            const downEl = document.getElementById('numDownMeters');
-            const effectivenessEl = document.getElementById('networkEffectivnessPercentage');
-            const pieEl = document.getElementById('networkEffectivenessPie');
-
-            try {
-                const response = await fetch('/api/dashboard-data');
-                if (!response.ok) {
-                    throw new Error('HTTP ' + response.status);
-                }
-
-                const data = await response.json();
-
-                activeEl.textContent = Number(data.NumActiveMeters ?? 0).toLocaleString();
-                downEl.textContent = Number(data.NumDownMeters ?? 0).toLocaleString();
-
-                const effectiveness = Number(data.NetworkEffectivnessPercentage ?? 0) * 100;
-                effectivenessEl.textContent = effectiveness.toFixed(1) + '%';
-
-                const clamped = Math.max(0, Math.min(100, effectiveness));
-                const degrees = (clamped / 100) * 360;
-                pieEl.style.background =
-                    'conic-gradient(#2f7d32 0deg, #2f7d32 ' + degrees + 'deg, #e8e8e8 ' + degrees + 'deg, #e8e8e8 360deg)';
-            } catch (err) {
-                const msg = 'Nije uspelo ucitavanje podataka';
-                activeEl.textContent = msg;
-                downEl.textContent = msg;
-                effectivenessEl.textContent = msg;
-                activeEl.classList.add('error');
-                downEl.classList.add('error');
-                effectivenessEl.classList.add('error');
-                pieEl.style.background = 'conic-gradient(#e8e8e8 0deg, #e8e8e8 360deg)';
-            }
-        }
-
-        loadDashboardData();
-    </script>
+    <script src="dashboard.js"></script>
 
 </body>
 </html>
