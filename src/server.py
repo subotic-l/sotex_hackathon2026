@@ -5,7 +5,7 @@ import time
 import schedule
 import subprocess
 import threading
-from flask import Flask
+from flask import Flask, jsonify
 
 app = Flask(__name__)
 
@@ -42,6 +42,15 @@ def map_view():
         return "Map not ready yet, please wait...", 503
     with open(files[0], encoding='utf-8', mode='r') as f:
         return f.read()
+
+
+@app.route('/api/dashboard-data')
+def dashboard_data():
+    return jsonify({
+        "NumActiveMeters": 323,
+        "NumDownMeters": 199,
+        "NetworkEffectivnessPercentage": 0.73,
+    })
 
 if __name__ == '__main__':
     app.run(debug=False, port=5000)
