@@ -3,3 +3,4 @@ schedule==1.2.0
 pymssql==2.3.0
 pandas==2.2.0
 folium==0.14.0
+pyodbc==5.3.0
