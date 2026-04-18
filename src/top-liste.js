@@ -5,6 +5,11 @@ let activeTab = 'svi';
 let searchQuery = '';
 let sortMode = 'najnoviji';
 
+function calcPct(item) {
+    if (!item.nameplate_rating_kva || !item.ocitavanje_val) return 0;
+    return Math.min(100, Math.round((item.ocitavanje_val / item.nameplate_rating_kva) * 100));
+}
+
 async function loadAll() {
     renderSkeletons();
     try {
@@ -14,9 +19,9 @@ async function loadAll() {
             fetch(`${API_BASE}/api/potrosaci`).then(r => r.json()),
         ]);
         allItems = [
-            ...fideri.map(x => ({ ...x, tip: 'fider' })),
-            ...provodnici.map(x => ({ ...x, tip: 'provodnik' })),
-            ...potrosaci.map(x => ({ ...x, tip: 'potrosac' })),
+            ...fideri.map(x => ({ ...x, tip: 'fider',     opterecenje_pct: calcPct(x), vreme_dolaska: x.ocitavanje_ts })),
+            ...provodnici.map(x => ({ ...x, tip: 'provodnik', opterecenje_pct: calcPct(x), vreme_dolaska: x.ocitavanje_ts })),
+            ...potrosaci.map(x => ({ ...x, tip: 'potrosac',  opterecenje_pct: calcPct(x), vreme_dolaska: x.ocitavanje_ts })),
         ];
         render();
     } catch (e) {
@@ -111,12 +116,12 @@ function render() {
             <div class="card-naziv">${item.naziv || '—'}</div>
             <div class="card-meta">
                 <div class="meta-row">
-                    <svg viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2A19.79 19.79 0 0 1 11.62 19a19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.9-8.2A2 2 0 0 1 3.68 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
-                    ${item.telefon || '—'}
+                    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h5"/></svg>
+                    Br. brojila: ${item.meter_id ?? '—'}
                 </div>
                 <div class="meta-row">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
-                    ${fmtTime(item.vreme_dolaska)}
+                    ${fmtTime(item.ocitavanje_ts)}
                 </div>
             </div>
             <div class="card-footer">
@@ -163,25 +168,26 @@ function openModal(item) {
     const cls = loadClass(pct);
 
     document.getElementById('modalTitle').textContent = item.naziv || '—';
-    document.getElementById('modalSubtitle').textContent = `${badgeLabel(item.tip)} · ID: ${item.id_oznaka || item.id}`;
+    document.getElementById('modalSubtitle').textContent = `${badgeLabel(item.tip)} · ID: ${item.id}`;
 
     let html = '';
 
+    // Osnovno – zajednička polja svih tabela
     html += `
     <div class="modal-section">
-        <div class="modal-section-title">Opšte informacije</div>
+        <div class="modal-section-title">Osnovno</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Status</div>
-                <div class="info-value">${statusDot(item.status)}${item.status || 'Aktivan'}</div>
+                <div class="info-label">ID zapisa</div>
+                <div class="info-value">${item.id}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Vreme dolaska</div>
-                <div class="info-value">${fmtTime(item.vreme_dolaska)}</div>
+                <div class="info-label">Br. brojila (MeterId)</div>
+                <div class="info-value">${item.meter_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Telefon</div>
-                <div class="info-value">${item.telefon || '—'}</div>
+                <div class="info-label">Nominalna snaga</div>
+                <div class="info-value">${item.nameplate_rating_kva != null ? item.nameplate_rating_kva + ' kVA' : '—'}</div>
             </div>
             <div class="info-item">
                 <div class="info-label">Tip</div>
@@ -190,69 +196,108 @@ function openModal(item) {
         </div>
     </div>`;
 
-    // Load section
+    // Meters: MSN, MultiplierFactor
     html += `
     <div class="modal-section">
-        <div class="modal-section-title">Opterećenje</div>
+        <div class="modal-section-title">Brojilo (Meters)</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Opterećenje (%)</div>
-                <div class="info-value ${pct >= 80 ? 'red' : pct >= 50 ? 'accent' : 'green'}">${pct}%</div>
-                <div class="modal-load-bar"><div class="modal-load-fill ${cls}" style="width:${pct}%"></div></div>
+                <div class="info-label">Serijski broj (MSN)</div>
+                <div class="info-value">${item.msn ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Snaga (kW)</div>
-                <div class="info-value">${item.snaga_kw != null ? item.snaga_kw + ' kW' : '—'}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Struja (A)</div>
-                <div class="info-value">${item.struja_a != null ? item.struja_a + ' A' : '—'}</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">Napon (V)</div>
-                <div class="info-value">${item.napon_v != null ? item.napon_v : '—'}</div>
+                <div class="info-label">Obračunski koef. (MultiplierFactor)</div>
+                <div class="info-value">${item.multiplier_factor ?? '—'}</div>
             </div>
         </div>
     </div>`;
 
-    // Extra fields depending on type
-    if (item.tip === 'fider' || item.tip === 'provodnik') {
-        html += `
+    // Poslednje očitavanje – MeterReadTfes (Val, Ts) + Channels (Name, Unit)
+    html += `
     <div class="modal-section">
-        <div class="modal-section-title">Tehničke karakteristike</div>
+        <div class="modal-section-title">Poslednje očitavanje (MeterReadTfes)</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Dužina (km)</div>
-                <div class="info-value">${item.duzina_km != null ? item.duzina_km + ' km' : '—'}</div>
+                <div class="info-label">Vrednost (Val)</div>
+                <div class="info-value ${pct >= 80 ? 'red' : pct >= 50 ? 'accent' : 'green'}">${item.ocitavanje_val ?? '—'} ${item.kanal_jedinica ?? ''}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Tip provodnika</div>
-                <div class="info-value">${item.tip_provodnika || '—'}</div>
+                <div class="info-label">Vreme (Ts)</div>
+                <div class="info-value">${fmtTime(item.ocitavanje_ts)}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Kanal (Channels.Name)</div>
+                <div class="info-value">${item.kanal_naziv ?? '—'}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Jedinica mere</div>
+                <div class="info-value">${item.kanal_jedinica ?? '—'}</div>
             </div>
             <div class="info-item full">
-                <div class="info-label">Zona / Lokacija</div>
-                <div class="info-value">${item.zona || item.lokacija || '—'}</div>
+                <div class="info-label">Opterećenje (Val / NameplateRating)</div>
+                <div class="info-value">${pct}%</div>
+                <div class="modal-load-bar"><div class="modal-load-fill ${cls}" style="width:${pct}%"></div></div>
+            </div>
+        </div>
+    </div>`;
+
+    // Feeders33: TsId
+    if (item.tip === 'fider') {
+        html += `
+    <div class="modal-section">
+        <div class="modal-section-title">Feeders33 – Visokonaponski vod</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Prenosna stanica (TsId)</div>
+                <div class="info-value">${item.ts_id ?? '—'}</div>
             </div>
         </div>
     </div>`;
     }
 
+    // Feeders11: SsId, Feeder33Id, TsId
+    if (item.tip === 'provodnik') {
+        html += `
+    <div class="modal-section">
+        <div class="modal-section-title">Feeders11 – Srednjenaponski vod</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Sredn. podstanica (SsId)</div>
+                <div class="info-value">${item.ss_id ?? '—'}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Visokon. vod (Feeder33Id)</div>
+                <div class="info-value">${item.feeder33_id ?? '—'}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Prenosna stanica (TsId)</div>
+                <div class="info-value">${item.ts_id ?? '—'}</div>
+            </div>
+        </div>
+    </div>`;
+    }
+
+    // Dt (niskonaponska podstanica): Feeder11Id, Feeder33Id, Lat, Lng
     if (item.tip === 'potrosac') {
         html += `
     <div class="modal-section">
-        <div class="modal-section-title">Podaci o potrošaču</div>
+        <div class="modal-section-title">Dt – Niskonaponska podstanica</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Broj brojila</div>
-                <div class="info-value">${item.br_brojila || '—'}</div>
+                <div class="info-label">Sredn. vod (Feeder11Id)</div>
+                <div class="info-value">${item.feeder11_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Fider</div>
-                <div class="info-value">${item.fider || '—'}</div>
+                <div class="info-label">Visokon. vod (Feeder33Id)</div>
+                <div class="info-value">${item.feeder33_id ?? '—'}</div>
             </div>
-            <div class="info-item full">
-                <div class="info-label">Adresa</div>
-                <div class="info-value">${item.adresa || '—'}</div>
+            <div class="info-item">
+                <div class="info-label">Geografska širina</div>
+                <div class="info-value">${item.latitude ?? '—'}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Geografska dužina</div>
+                <div class="info-value">${item.longitude ?? '—'}</div>
             </div>
         </div>
     </div>`;
@@ -266,7 +311,7 @@ function closeModal() {
     document.getElementById('modalOverlay').classList.remove('open');
 }
 
-// ── Events ──────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', () => {
     loadAll();
 
