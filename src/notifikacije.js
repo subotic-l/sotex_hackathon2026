@@ -15,7 +15,7 @@ async function loadAll() {
     } catch (e) {
         console.error('Greška:', e);
         document.getElementById('cardsGrid').innerHTML =
-            '<p style="color:#c00;grid-column:1/-1;padding:20px">Greška pri učitavanju podataka</p>';
+            '<p style="color:#c00;grid-column:1/-1;padding:20px">Failed to load data</p>';
     }
 }
 
@@ -52,7 +52,7 @@ function badgeClass(tip) {
     return { alarm: 'badge-alarm', upozorenje: 'badge-upozorenje', gubitak: 'badge-gubitak', info: 'badge-info' }[tip] || '';
 }
 function badgeLabel(tip) {
-    return { alarm: 'Alarm', upozorenje: 'Nagla promena', gubitak: 'Gubitak', info: 'Info' }[tip] || tip;
+    return { alarm: 'Alarm', upozorenje: 'Warning', gubitak: 'Loss', info: 'Info' }[tip] || tip;
 }
 
 function fmtTime(iso) {
@@ -133,68 +133,65 @@ function openModal(item) {
 
     let html = '';
 
-    // Promena blok
     html += `
     <div class="modal-section">
-        <div class="modal-section-title">Promena vrednosti</div>
+        <div class="modal-section-title">Value Change</div>
         <div class="change-block">
             <div>
-                <div class="cb-label">Pre</div>
+                <div class="cb-label">Before</div>
                 <div class="cb-val">${item.vrednost_pre} ${item.jedinica ?? ''}</div>
             </div>
             <div class="cb-arrow">→</div>
             <div>
-                <div class="cb-label">Posle</div>
+                <div class="cb-label">After</div>
                 <div class="cb-val ${dir}">${item.vrednost_posle} ${item.jedinica ?? ''}</div>
             </div>
             <div style="margin-left:auto;text-align:right">
-                <div class="cb-label">Promena</div>
+                <div class="cb-label">Change</div>
                 <div class="cb-val ${dir}">${sign}${pct}%</div>
             </div>
         </div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Vreme detekcije (Ts)</div>
+                <div class="info-label">Detection Time (Ts)</div>
                 <div class="info-value">${fmtTime(item.vreme)}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Tip notifikacije</div>
+                <div class="info-label">Notification Type</div>
                 <div class="info-value">${badgeLabel(item.tip)}</div>
             </div>
         </div>
     </div>`;
 
-    // Izvor – MeterReadTfes / Meters
     html += `
     <div class="modal-section">
-        <div class="modal-section-title">Izvor (MeterReadTfes · Meters)</div>
+        <div class="modal-section-title">Source (MeterReadTfes · Meters)</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Br. brojila (MeterId / Mid)</div>
+                <div class="info-label">Meter No. (MeterId / Mid)</div>
                 <div class="info-value">${item.meter_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Serijski broj (MSN)</div>
+                <div class="info-label">Serial No. (MSN)</div>
                 <div class="info-value">${item.msn ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Kanal (Channels.Name)</div>
+                <div class="info-label">Channel (Channels.Name)</div>
                 <div class="info-value">${item.kanal_naziv ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Jedinica mere</div>
+                <div class="info-label">Unit of Measure</div>
                 <div class="info-value">${item.jedinica ?? '—'}</div>
             </div>
         </div>
     </div>`;
 
-    // Mrežna lokacija – Feeder
     html += `
     <div class="modal-section">
-        <div class="modal-section-title">Mrežna lokacija</div>
+        <div class="modal-section-title">Network Location</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Naziv voda / podstanice</div>
+                <div class="info-label">Feeder / Substation Name</div>
                 <div class="info-value">${item.feeder_naziv ?? '—'}</div>
             </div>
             <div class="info-item">
@@ -206,18 +203,17 @@ function openModal(item) {
                 <div class="info-value">${item.feeder11_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Nominalna snaga</div>
+                <div class="info-label">Nameplate Rating</div>
                 <div class="info-value">${item.nameplate_rating_kva != null ? item.nameplate_rating_kva + ' kVA' : '—'}</div>
             </div>
         </div>
     </div>`;
 
-    // Poruka / opis
     html += `
     <div class="modal-section">
-        <div class="modal-section-title">Opis</div>
+        <div class="modal-section-title">Description</div>
         <div class="info-item full" style="background:#f8f8f8;border-radius:10px;padding:14px">
-            <div class="info-label">Poruka</div>
+            <div class="info-label">Message</div>
             <div class="info-value" style="font-size:14px;font-weight:400;line-height:1.5;color:#333">${item.poruka}</div>
         </div>
     </div>`;

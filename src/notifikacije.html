@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StatPRO – Notifikacije</title>
+    <title>StatPRO – Notifications</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -306,7 +306,7 @@
         <header class="topbar">
             <div class="search-box">
                 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22" stroke="#aab" stroke-width="2"/></svg>
-                <input type="text" id="globalSearch" placeholder="Pretraži notifikacije…" />
+                <input type="text" id="globalSearch" placeholder="Search notifications…" />
             </div>
             <div class="topbar-spacer"></div>
             <div class="user-avatar">
@@ -319,8 +319,8 @@
 
             <div class="page-header">
                 <div>
-                    <div class="page-title">Notifikacije</div>
-                    <div class="page-subtitle">Nagla promena potrošnje · Gubici · Alarmi</div>
+                    <div class="page-title">Notifications</div>
+                    <div class="page-subtitle">Sudden Consumption Change · Losses · Alarms</div>
                 </div>
             </div>
 
@@ -328,39 +328,39 @@
             <div class="stats-row" id="statsRow">
                 <div class="stat-card">
                     <div class="stat-icon red"><svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
-                    <div><div class="stat-label">Alarmi</div><div class="stat-value" id="cntAlarm">0</div></div>
+                    <div><div class="stat-label">Alarms</div><div class="stat-value" id="cntAlarm">0</div></div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon orange"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
-                    <div><div class="stat-label">Nagla promena</div><div class="stat-value" id="cntPromena">0</div></div>
+                    <div><div class="stat-label">Sudden Change</div><div class="stat-value" id="cntPromena">0</div></div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon" style="background:#f3e5f5"><svg viewBox="0 0 24 24" style="fill:#8e44ad"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg></div>
-                    <div><div class="stat-label">Gubici</div><div class="stat-value" id="cntGubitak">0</div></div>
+                    <div><div class="stat-label">Losses</div><div class="stat-value" id="cntGubitak">0</div></div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon blue"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg></div>
-                    <div><div class="stat-label">Informacije</div><div class="stat-value" id="cntInfo">0</div></div>
+                    <div><div class="stat-label">Information</div><div class="stat-value" id="cntInfo">0</div></div>
                 </div>
             </div>
 
             <!-- Filter bar -->
             <div class="filter-bar">
                 <div class="filter-tabs">
-                    <button class="filter-tab active" data-tab="sve">Sve</button>
+                    <button class="filter-tab active" data-tab="sve">All</button>
                     <button class="filter-tab" data-tab="alarm">Alarm</button>
-                    <button class="filter-tab" data-tab="upozorenje">Upozorenje</button>
-                    <button class="filter-tab" data-tab="gubitak">Gubitak</button>
+                    <button class="filter-tab" data-tab="upozorenje">Warning</button>
+                    <button class="filter-tab" data-tab="gubitak">Loss</button>
                     <button class="filter-tab" data-tab="info">Info</button>
                 </div>
                 <select class="sort-select" id="sortSelect">
-                    <option value="najnoviji">Najnoviji</option>
-                    <option value="najstariji">Najstariji</option>
-                    <option value="promena_desc">Promena % ↓</option>
-                    <option value="promena_asc">Promena % ↑</option>
+                    <option value="najnoviji">Newest</option>
+                    <option value="najstariji">Oldest</option>
+                    <option value="promena_desc">Change % ↓</option>
+                    <option value="promena_asc">Change % ↑</option>
                 </select>
                 <div class="filter-spacer"></div>
-                <div class="count-badge">Prikazano: <span id="cardCount">0</span></div>
+                <div class="count-badge">Showing: <span id="cardCount">0</span></div>
             </div>
 
             <!-- Cards -->
@@ -368,7 +368,7 @@
                 <div class="cards-grid" id="cardsGrid"></div>
                 <div class="empty-state" id="emptyState">
                     <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-                    <p>Nema notifikacija za odabrani filter</p>
+                    <p>No notifications for the selected filter</p>
                 </div>
             </div>
         </div>

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>StatPRO – Top Liste</title>
+    <title>StatPRO – Top Rankings</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -571,7 +571,7 @@
         <header class="topbar">
             <div class="search-box">
                 <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22" stroke="#aab" stroke-width="2"/></svg>
-                <input type="text" id="globalSearch" placeholder="Pretraži fidere, provodnike, potrošače…" />
+                <input type="text" id="globalSearch" placeholder="Search feeders, conductors, substations…" />
             </div>
             <div class="topbar-spacer"></div>
             <div class="user-avatar">
@@ -586,32 +586,32 @@
             <!-- Page header -->
             <div class="page-header">
                 <div>
-                    <div class="page-title">Top Liste & Opterećenja</div>
-                    <div class="page-subtitle">Potrošači · Fideri · Provodnici</div>
+                    <div class="page-title">Top Rankings & Load Overview</div>
+                    <div class="page-subtitle">Substations · Feeders 33kV · Feeders 11kV</div>
                 </div>
             </div>
 
             <!-- Filter bar -->
             <div class="filter-bar">
                 <div class="filter-tabs">
-                    <button class="filter-tab active" data-tab="svi">Svi</button>
-                    <button class="filter-tab" data-tab="fideri">Fideri</button>
-                    <button class="filter-tab" data-tab="provodnici">Provodnici</button>
-                    <button class="filter-tab" data-tab="potrosaci">Potrošači</button>
+                    <button class="filter-tab active" data-tab="svi">All</button>
+                    <button class="filter-tab" data-tab="fideri">Feeders 33kV</button>
+                    <button class="filter-tab" data-tab="provodnici">Feeders 11kV</button>
+                    <button class="filter-tab" data-tab="potrosaci">Substations</button>
                 </div>
 
                 <select class="sort-select" id="sortSelect">
-                    <option value="najnoviji">Najnoviji</option>
-                    <option value="najstariji">Najstariji</option>
-                    <option value="naziv_az">Naziv A–Z</option>
-                    <option value="naziv_za">Naziv Z–A</option>
-                    <option value="opterecenje_desc">Opterećenje ↓</option>
-                    <option value="opterecenje_asc">Opterećenje ↑</option>
+                    <option value="najnoviji">Newest</option>
+                    <option value="najstariji">Oldest</option>
+                    <option value="naziv_az">Name A–Z</option>
+                    <option value="naziv_za">Name Z–A</option>
+                    <option value="opterecenje_desc">Load ↓</option>
+                    <option value="opterecenje_asc">Load ↑</option>
                 </select>
 
                 <div class="filter-spacer"></div>
 
-                <div class="count-badge">Prikazano: <span id="cardCount">0</span></div>
+                <div class="count-badge">Showing: <span id="cardCount">0</span></div>
             </div>
 
             <!-- Cards -->
@@ -619,7 +619,7 @@
                 <div class="cards-grid" id="cardsGrid"></div>
                 <div class="empty-state" id="emptyState">
                     <svg viewBox="0 0 24 24"><path d="M9.172 16.172a4 4 0 0 1 5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#ccc" stroke-width="2" fill="none"/></svg>
-                    <p>Nema rezultata za pretragu</p>
+                    <p>No results found</p>
                 </div>
             </div>
         </div>

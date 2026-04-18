@@ -27,7 +27,7 @@ async function loadAll() {
     } catch (e) {
         console.error('Greška pri učitavanju:', e);
         document.getElementById('cardsGrid').innerHTML =
-            '<p style="color:#c00;grid-column:1/-1;padding:20px">Greška pri učitavanju podataka</p>';
+            '<p style="color:#c00;grid-column:1/-1;padding:20px">Failed to load data</p>';
     }
 }
 
@@ -70,7 +70,7 @@ function badgeClass(tip) {
 }
 
 function badgeLabel(tip) {
-    return { fider: 'Fider', provodnik: 'Provodnik', potrosac: 'Potrošač' }[tip] || tip;
+    return { fider: 'Feeder 33kV', provodnik: 'Feeder 11kV', potrosac: 'Substation' }[tip] || tip;
 }
 
 function loadClass(pct) {
@@ -117,7 +117,7 @@ function render() {
             <div class="card-meta">
                 <div class="meta-row">
                     <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h5"/></svg>
-                    Br. brojila: ${item.meter_id ?? '—'}
+                    Meter ID: ${item.meter_id ?? '—'}
                 </div>
                 <div class="meta-row">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
@@ -126,7 +126,7 @@ function render() {
             </div>
             <div class="card-footer">
                 <div class="load-bar-wrap">
-                    <div class="load-label">Opterećenje</div>
+                    <div class="load-label">Load</div>
                     <div class="load-bar-bg"><div class="load-bar-fill ${cls}" style="width:${pct}%"></div></div>
                 </div>
                 <div class="load-value">${pct}%</div>
@@ -172,131 +172,125 @@ function openModal(item) {
 
     let html = '';
 
-    // Osnovno – zajednička polja svih tabela
     html += `
     <div class="modal-section">
-        <div class="modal-section-title">Osnovno</div>
+        <div class="modal-section-title">General</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">ID zapisa</div>
+                <div class="info-label">Record ID</div>
                 <div class="info-value">${item.id}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Br. brojila (MeterId)</div>
+                <div class="info-label">Meter No. (MeterId)</div>
                 <div class="info-value">${item.meter_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Nominalna snaga</div>
+                <div class="info-label">Nameplate Rating</div>
                 <div class="info-value">${item.nameplate_rating_kva != null ? item.nameplate_rating_kva + ' kVA' : '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Tip</div>
+                <div class="info-label">Type</div>
                 <div class="info-value">${badgeLabel(item.tip)}</div>
             </div>
         </div>
     </div>`;
 
-    // Meters: MSN, MultiplierFactor
     html += `
     <div class="modal-section">
-        <div class="modal-section-title">Brojilo (Meters)</div>
+        <div class="modal-section-title">Meter (Meters)</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Serijski broj (MSN)</div>
+                <div class="info-label">Serial No. (MSN)</div>
                 <div class="info-value">${item.msn ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Obračunski koef. (MultiplierFactor)</div>
+                <div class="info-label">Multiplier Factor</div>
                 <div class="info-value">${item.multiplier_factor ?? '—'}</div>
             </div>
         </div>
     </div>`;
 
-    // Poslednje očitavanje – MeterReadTfes (Val, Ts) + Channels (Name, Unit)
     html += `
     <div class="modal-section">
-        <div class="modal-section-title">Poslednje očitavanje (MeterReadTfes)</div>
+        <div class="modal-section-title">Last Reading (MeterReadTfes)</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Vrednost (Val)</div>
+                <div class="info-label">Value (Val)</div>
                 <div class="info-value ${pct >= 80 ? 'red' : pct >= 50 ? 'accent' : 'green'}">${item.ocitavanje_val ?? '—'} ${item.kanal_jedinica ?? ''}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Vreme (Ts)</div>
+                <div class="info-label">Timestamp (Ts)</div>
                 <div class="info-value">${fmtTime(item.ocitavanje_ts)}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Kanal (Channels.Name)</div>
+                <div class="info-label">Channel (Channels.Name)</div>
                 <div class="info-value">${item.kanal_naziv ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Jedinica mere</div>
+                <div class="info-label">Unit of Measure</div>
                 <div class="info-value">${item.kanal_jedinica ?? '—'}</div>
             </div>
             <div class="info-item full">
-                <div class="info-label">Opterećenje (Val / NameplateRating)</div>
+                <div class="info-label">Load (Val / NameplateRating)</div>
                 <div class="info-value">${pct}%</div>
                 <div class="modal-load-bar"><div class="modal-load-fill ${cls}" style="width:${pct}%"></div></div>
             </div>
         </div>
     </div>`;
 
-    // Feeders33: TsId
     if (item.tip === 'fider') {
         html += `
     <div class="modal-section">
-        <div class="modal-section-title">Feeders33 – Visokonaponski vod</div>
+        <div class="modal-section-title">Feeders33 – High Voltage Line</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Prenosna stanica (TsId)</div>
+                <div class="info-label">Transmission Station (TsId)</div>
                 <div class="info-value">${item.ts_id ?? '—'}</div>
             </div>
         </div>
     </div>`;
     }
 
-    // Feeders11: SsId, Feeder33Id, TsId
     if (item.tip === 'provodnik') {
         html += `
     <div class="modal-section">
-        <div class="modal-section-title">Feeders11 – Srednjenaponski vod</div>
+        <div class="modal-section-title">Feeders11 – Medium Voltage Line</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Sredn. podstanica (SsId)</div>
+                <div class="info-label">Substation (SsId)</div>
                 <div class="info-value">${item.ss_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Visokon. vod (Feeder33Id)</div>
+                <div class="info-label">HV Feeder (Feeder33Id)</div>
                 <div class="info-value">${item.feeder33_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Prenosna stanica (TsId)</div>
+                <div class="info-label">Transmission Station (TsId)</div>
                 <div class="info-value">${item.ts_id ?? '—'}</div>
             </div>
         </div>
     </div>`;
     }
 
-    // Dt (niskonaponska podstanica): Feeder11Id, Feeder33Id, Lat, Lng
     if (item.tip === 'potrosac') {
         html += `
     <div class="modal-section">
-        <div class="modal-section-title">Dt – Niskonaponska podstanica</div>
+        <div class="modal-section-title">Dt – Low Voltage Substation</div>
         <div class="info-grid">
             <div class="info-item">
-                <div class="info-label">Sredn. vod (Feeder11Id)</div>
+                <div class="info-label">MV Feeder (Feeder11Id)</div>
                 <div class="info-value">${item.feeder11_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Visokon. vod (Feeder33Id)</div>
+                <div class="info-label">HV Feeder (Feeder33Id)</div>
                 <div class="info-value">${item.feeder33_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Geografska širina</div>
+                <div class="info-label">Latitude</div>
                 <div class="info-value">${item.latitude ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Geografska dužina</div>
+                <div class="info-label">Longitude</div>
                 <div class="info-value">${item.longitude ?? '—'}</div>
             </div>
         </div>
