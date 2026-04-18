@@ -5,7 +5,7 @@ import time
 import schedule
 import subprocess
 import threading
-from flask import Flask, render_template_string
+from flask import Flask
 
 app = Flask(__name__)
 
@@ -32,23 +32,15 @@ worker.start()
 
 @app.route('/')
 def dashboard():
-    return render_template_string("""
-        <!DOCTYPE html>
-        <html>
-        <head><title>Dashboard</title></head>
-        <body>
-            <h1>Sotex Dashboard</h1>
-            <p>Coming soon...</p>
-        </body>
-        </html>
-    """)
+    with open(os.path.join(os.path.dirname(__file__), 'dashboard.html'), encoding='utf-8') as f:
+        return f.read()
 
 @app.route('/map')
 def map_view():
     files = glob.glob('map.*')
     if not files:
         return "Map not ready yet, please wait...", 503
-    with open(files[0], 'r') as f:
+    with open(files[0], encoding='utf-8', mode='r') as f:
         return f.read()
 
 if __name__ == '__main__':
