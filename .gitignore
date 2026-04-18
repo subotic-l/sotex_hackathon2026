@@ -1,1 +1,9 @@
 *.bacpac
+
+# Python cache / bytecode
+__pycache__/
+*.py[cod]
+
+# Generated local outputs
+src/map.html
+src/meter_check_results.csv
