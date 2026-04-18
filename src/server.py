@@ -6,8 +6,10 @@ import schedule
 import subprocess
 import threading
 from flask import Flask, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 def generate_map():
     print("Generating new map...")
@@ -34,6 +36,11 @@ worker.start()
 def dashboard():
     with open(os.path.join(os.path.dirname(__file__), 'dashboard.html'), encoding='utf-8') as f:
         return f.read()
+
+@app.route('/dashboard.js')
+def dashboard_js():
+    with open(os.path.join(os.path.dirname(__file__), 'dashboard.js'), encoding='utf-8') as f:
+        return f.read(), 200, {'Content-Type': 'application/javascript'}
 
 @app.route('/map')
 def map_view():
