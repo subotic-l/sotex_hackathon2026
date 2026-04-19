@@ -31,6 +31,7 @@ DB_CONFIG = {
 }
 
 HISTORY_TABLE = 'MeterDailyStatusHistory'
+SOURCE_TABLE = 'MeterReadTfes'
 
 FALLBACK_DASHBOARD = {
     'NumActiveMeters': 323,
@@ -41,6 +42,29 @@ FALLBACK_DASHBOARD = {
 
 def connect_to_db():
     return pymssql.connect(**DB_CONFIG)
+
+
+def ensure_source_indexes(conn):
+    ddl = f'''
+    IF NOT EXISTS (
+        SELECT 1
+        FROM sys.indexes
+        WHERE name = 'IX_{SOURCE_TABLE}_Mid_Ts'
+          AND object_id = OBJECT_ID('{SOURCE_TABLE}')
+    )
+    BEGIN
+        CREATE INDEX IX_{SOURCE_TABLE}_Mid_Ts
+        ON {SOURCE_TABLE} (Mid, Ts DESC)
+        INCLUDE (Val);
+    END
+    '''
+
+    cur = conn.cursor()
+    try:
+        cur.execute(ddl)
+    finally:
+        cur.close()
+    conn.commit()
 
 
 def get_latest_snapshot_date(conn):
@@ -148,6 +172,244 @@ def get_meter_history(conn, status=None, snapshot_date=None, page=1, page_size=5
         'items': items,
     }
 
+
+def get_dt_details(conn, dt_id):
+    query = '''
+    SELECT
+        d.Id,
+        d.Name,
+        d.MeterId,
+        d.Feeder11Id,
+        d.Feeder33Id,
+        d.NameplateRating,
+        d.Latitude,
+        d.Longitude,
+        m.MSN,
+        m.MultiplierFactor,
+        lr.Val AS LastVal,
+        lr.Ts AS LastTs,
+        CASE
+            WHEN d.NameplateRating IS NULL OR d.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
+            ELSE ROUND((lr.Val / d.NameplateRating) * 100.0, 2)
+        END AS LoadPercent
+    FROM DistributionSubstation d
+    LEFT JOIN Meters m ON m.Id = d.MeterId
+    OUTER APPLY (
+        SELECT TOP 1 t.Val, t.Ts
+        FROM MeterReadTfes t
+        WHERE t.Mid = d.MeterId
+        ORDER BY t.Ts DESC
+    ) lr
+    WHERE d.Id = %s;
+    '''
+
+    cur = conn.cursor()
+    try:
+        cur.execute(query, (dt_id,))
+        row = cur.fetchone()
+    finally:
+        cur.close()
+
+    if not row:
+        return None
+
+    return {
+        'Id': row[0],
+        'Name': row[1],
+        'MeterId': row[2],
+        'Feeder11Id': row[3],
+        'Feeder33Id': row[4],
+        'NameplateRating': row[5],
+        'Latitude': row[6],
+        'Longitude': row[7],
+        'MSN': row[8],
+        'MultiplierFactor': row[9],
+        'LastVal': row[10],
+        'LastTs': row[11].isoformat() if row[11] else None,
+        'LoadPercent': float(row[12]) if row[12] is not None else None,
+        # No reliable channel relation for this DTO yet.
+        'ChannelName': None,
+        'Unit': None,
+    }
+
+
+def get_fider_details(conn, fider_id):
+    query = '''
+    SELECT
+        f.Id,
+        f.Name,
+        f.TsId,
+        f.MeterId,
+        f.NameplateRating,
+        m.MSN,
+        m.MultiplierFactor,
+        lr.Val AS LastVal,
+        lr.Ts AS LastTs,
+        CASE
+            WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
+            ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
+        END AS LoadPercent
+    FROM Feeders33 f
+    LEFT JOIN Meters m ON m.Id = f.MeterId
+    OUTER APPLY (
+        SELECT TOP 1 t.Val, t.Ts
+        FROM MeterReadTfes t
+        WHERE t.Mid = f.MeterId
+        ORDER BY t.Ts DESC
+    ) lr
+    WHERE f.Id = %s;
+    '''
+
+    cur = conn.cursor()
+    try:
+        cur.execute(query, (fider_id,))
+        row = cur.fetchone()
+    finally:
+        cur.close()
+
+    if not row:
+        return None
+
+    return {
+        'Id': row[0],
+        'Name': row[1],
+        'TsId': row[2],
+        'MeterId': row[3],
+        'NameplateRating': row[4],
+        'MSN': row[5],
+        'MultiplierFactor': row[6],
+        'LastVal': row[7],
+        'LastTs': row[8].isoformat() if row[8] else None,
+        'LoadPercent': float(row[9]) if row[9] is not None else None,
+        'ChannelName': None,
+        'Unit': None,
+    }
+
+
+def get_provodnik_details(conn, provodnik_id):
+    query = '''
+    SELECT
+        f.Id,
+        f.Name,
+        f.TsId,
+        f.SsId,
+        f.Feeder33Id,
+        f.MeterId,
+        f.NameplateRating,
+        m.MSN,
+        m.MultiplierFactor,
+        lr.Val AS LastVal,
+        lr.Ts AS LastTs,
+        CASE
+            WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
+            ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
+        END AS LoadPercent
+    FROM Feeders11 f
+    LEFT JOIN Meters m ON m.Id = f.MeterId
+    OUTER APPLY (
+        SELECT TOP 1 t.Val, t.Ts
+        FROM MeterReadTfes t
+        WHERE t.Mid = f.MeterId
+        ORDER BY t.Ts DESC
+    ) lr
+    WHERE f.Id = %s;
+    '''
+
+    cur = conn.cursor()
+    try:
+        cur.execute(query, (provodnik_id,))
+        row = cur.fetchone()
+    finally:
+        cur.close()
+
+    if not row:
+        return None
+
+    return {
+        'Id': row[0],
+        'Name': row[1],
+        'TsId': row[2],
+        'SsId': row[3],
+        'Feeder33Id': row[4],
+        'MeterId': row[5],
+        'NameplateRating': row[6],
+        'MSN': row[7],
+        'MultiplierFactor': row[8],
+        'LastVal': row[9],
+        'LastTs': row[10].isoformat() if row[10] else None,
+        'LoadPercent': float(row[11]) if row[11] is not None else None,
+        'ChannelName': None,
+        'Unit': None,
+    }
+
+
+def parse_pagination_args():
+    page = max(int(request.args.get('page', 1)), 1)
+    page_size = min(max(int(request.args.get('pageSize', 24)), 1), 200)
+    return page, page_size
+
+
+def parse_list_args():
+    page, page_size = parse_pagination_args()
+    search_query = request.args.get('q', '').strip()
+    sort_mode = request.args.get('sort', 'najnoviji').strip()
+    return page, page_size, search_query, sort_mode
+
+
+def build_search_clause(search_query, columns):
+    if not search_query:
+        return '', []
+
+    pattern = f'%{search_query}%'
+    clause = ' AND (' + ' OR '.join([f'CAST({column} AS NVARCHAR(200)) LIKE %s' for column in columns]) + ')'
+    return clause, [pattern] * len(columns)
+
+
+def build_order_clause(sort_mode):
+    sort_map = {
+        'najnoviji': 'LastReadingTs DESC, Id DESC',
+        'najstariji': 'LastReadingTs ASC, Id ASC',
+        'naziv_az': 'Name ASC, Id ASC',
+        'naziv_za': 'Name DESC, Id DESC',
+        'opterecenje_desc': 'LoadPercent DESC, Id DESC',
+        'opterecenje_asc': 'LoadPercent ASC, Id ASC',
+    }
+    return sort_map.get(sort_mode, sort_map['najnoviji'])
+
+
+def fetch_paginated_assets(conn, from_sql, count_sql, params, page, page_size, tip):
+    offset = (page - 1) * page_size
+
+    cur = conn.cursor()
+    try:
+        cur.execute(count_sql, tuple(params))
+        total_items = int(cur.fetchone()[0] or 0)
+
+        cur.execute(from_sql, tuple(params + [offset, page_size]))
+        rows = cur.fetchall()
+    finally:
+        cur.close()
+
+    items = []
+    for row in rows:
+        items.append({
+            'id': row[0],
+            'naziv': row[1],
+            'meter_id': row[2],
+            'ocitavanje_ts': row[3].isoformat() if row[3] else None,
+            'opterecenje_pct': float(row[4]) if row[4] is not None else None,
+            'tip': tip,
+        })
+
+    total_pages = (total_items + page_size - 1) // page_size if page_size else 0
+    return {
+        'page': page,
+        'pageSize': page_size,
+        'totalItems': total_items,
+        'totalPages': total_pages,
+        'items': items,
+    }
+
 def generate_map():
     print("Generating new map...")
     
@@ -174,6 +436,12 @@ def run_daily_meter_history_snapshot(snapshot_date=None):
     print("Meter history snapshot done!")
 
 def run_scheduler():
+    conn = connect_to_db()
+    try:
+        ensure_source_indexes(conn)
+    finally:
+        conn.close()
+
     generate_map()
     run_daily_meter_history_snapshot()
 
@@ -288,6 +556,21 @@ def up_meters_history():
     except Exception as exc:
         return jsonify({'error': str(exc), 'items': [], 'totalItems': 0, 'totalPages': 0}), 500
 
+
+@app.route('/api/dt/<int:dt_id>/details')
+def dt_details(dt_id):
+    try:
+        conn = connect_to_db()
+        try:
+            payload = get_dt_details(conn, dt_id)
+            if payload is None:
+                return jsonify({'error': f'DT with id {dt_id} not found'}), 404
+            return jsonify(payload)
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+
 @app.route('/top-liste')
 def top_liste():
     with open(os.path.join(os.path.dirname(__file__), 'top-liste.html'), encoding='utf-8') as f:
@@ -309,32 +592,55 @@ def _ts(days_ago=0, hours_ago=0):
 # + join: Meters (MSN, MultiplierFactor), MeterReadTfes (Val, Ts), Channels (Name, Unit)
 @app.route('/api/fideri')
 def api_fideri():
-    return jsonify([
-        {"id": 1, "naziv": "Feeder33 – North Ring",   "ts_id": 10, "meter_id": 1001, "nameplate_rating_kva": 5000,
-         "msn": "MSN-F33-001", "multiplier_factor": 1.0,
-         "ocitavanje_val": 4350, "ocitavanje_ts": _ts(0,1),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 2, "naziv": "Feeder33 – South Ring",   "ts_id": 10, "meter_id": 1002, "nameplate_rating_kva": 4500,
-         "msn": "MSN-F33-002", "multiplier_factor": 1.0,
-         "ocitavanje_val": 2790, "ocitavanje_ts": _ts(0,3),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 3, "naziv": "Feeder33 – East Line",    "ts_id": 11, "meter_id": 1003, "nameplate_rating_kva": 6000,
-         "msn": "MSN-F33-003", "multiplier_factor": 1.5,
-         "ocitavanje_val": 4440, "ocitavanje_ts": _ts(0,5),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 4, "naziv": "Feeder33 – West Line",    "ts_id": 11, "meter_id": 1004, "nameplate_rating_kva": 3500,
-         "msn": "MSN-F33-004", "multiplier_factor": 1.0,
-         "ocitavanje_val": 1575, "ocitavanje_ts": _ts(1,0),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 5, "naziv": "Feeder33 – Industrial A", "ts_id": 12, "meter_id": 1005, "nameplate_rating_kva": 8000,
-         "msn": "MSN-F33-005", "multiplier_factor": 2.0,
-         "ocitavanje_val": 7280, "ocitavanje_ts": _ts(1,4),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 6, "naziv": "Feeder33 – Industrial B", "ts_id": 12, "meter_id": 1006, "nameplate_rating_kva": 7000,
-         "msn": "MSN-F33-006", "multiplier_factor": 2.0,
-         "ocitavanje_val": 2660, "ocitavanje_ts": _ts(2,0),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 7, "naziv": "Feeder33 – Suburban C",   "ts_id": 13, "meter_id": 1007, "nameplate_rating_kva": 4000,
-         "msn": "MSN-F33-007", "multiplier_factor": 1.0,
-         "ocitavanje_val": 2200, "ocitavanje_ts": _ts(2,6),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 8, "naziv": "Feeder33 – Suburban D",   "ts_id": 13, "meter_id": 1008, "nameplate_rating_kva": 4500,
-         "msn": "MSN-F33-008", "multiplier_factor": 1.0,
-         "ocitavanje_val": 3105, "ocitavanje_ts": _ts(3,0),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-    ])
+    page, page_size, search_query, sort_mode = parse_list_args()
+    search_clause, search_params = build_search_clause(search_query, ['f.Name', 'f.Id', 'f.MeterId'])
+    order_clause = build_order_clause(sort_mode)
+    query = f'''
+    SELECT
+        f.Id,
+        f.Name,
+        f.MeterId,
+        lr.Ts AS LastReadingTs,
+        CASE
+            WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
+            ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
+        END AS LoadPercent
+    FROM Feeders33 f
+    OUTER APPLY (
+        SELECT TOP 1 t.Val, t.Ts
+        FROM MeterReadTfes t
+        WHERE t.Mid = f.MeterId
+        ORDER BY t.Ts DESC
+    ) lr
+    WHERE 1=1{search_clause}
+    ORDER BY {order_clause}
+    OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
+    '''
+    count_sql = f'SELECT COUNT(*) FROM Feeders33 f WHERE 1=1{search_clause}'
+
+    try:
+        conn = connect_to_db()
+        try:
+            return jsonify(fetch_paginated_assets(conn, query, count_sql, search_params, page, page_size, 'fider'))
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc), 'items': [], 'totalItems': 0, 'totalPages': 0}), 500
+
+
+@app.route('/api/fideri/<int:fider_id>/details')
+def api_fider_details(fider_id):
+    try:
+        conn = connect_to_db()
+        try:
+            payload = get_fider_details(conn, fider_id)
+            if payload is None:
+                return jsonify({'error': f'Fider with id {fider_id} not found'}), 404
+            return jsonify(payload)
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
 
 
 # Feeders11 – Srednjenaponski vodovi
@@ -342,26 +648,55 @@ def api_fideri():
 # + join: Meters (MSN, MultiplierFactor), MeterReadTfes (Val, Ts), Channels (Name, Unit)
 @app.route('/api/provodnici')
 def api_provodnici():
-    return jsonify([
-        {"id": 101, "naziv": "Feeder11 – Segment A1", "ss_id": 201, "meter_id": 2001, "feeder33_id": 3, "ts_id": 11, "nameplate_rating_kva": 1600,
-         "msn": "MSN-F11-101", "multiplier_factor": 1.0,
-         "ocitavanje_val": 1248, "ocitavanje_ts": _ts(0,2),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 102, "naziv": "Feeder11 – Segment B2", "ss_id": 202, "meter_id": 2002, "feeder33_id": 4, "ts_id": 11, "nameplate_rating_kva": 1000,
-         "msn": "MSN-F11-102", "multiplier_factor": 1.0,
-         "ocitavanje_val":  420, "ocitavanje_ts": _ts(0,4),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 103, "naziv": "Feeder11 – Segment C3", "ss_id": 203, "meter_id": 2003, "feeder33_id": 5, "ts_id": 12, "nameplate_rating_kva": 2000,
-         "msn": "MSN-F11-103", "multiplier_factor": 1.5,
-         "ocitavanje_val": 1860, "ocitavanje_ts": _ts(0,8),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 104, "naziv": "Feeder11 – Segment D4", "ss_id": 204, "meter_id": 2004, "feeder33_id": 6, "ts_id": 12, "nameplate_rating_kva":  800,
-         "msn": "MSN-F11-104", "multiplier_factor": 1.0,
-         "ocitavanje_val":  248, "ocitavanje_ts": _ts(1,2),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 105, "naziv": "Feeder11 – Segment E5", "ss_id": 205, "meter_id": 2005, "feeder33_id": 3, "ts_id": 11, "nameplate_rating_kva": 1600,
-         "msn": "MSN-F11-105", "multiplier_factor": 1.0,
-         "ocitavanje_val": 1040, "ocitavanje_ts": _ts(1,7),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-        {"id": 106, "naziv": "Feeder11 – Segment F6", "ss_id": 206, "meter_id": 2006, "feeder33_id": 7, "ts_id": 13, "nameplate_rating_kva": 1250,
-         "msn": "MSN-F11-106", "multiplier_factor": 1.0,
-         "ocitavanje_val":  712, "ocitavanje_ts": _ts(2,3),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh"},
-    ])
+    page, page_size, search_query, sort_mode = parse_list_args()
+    search_clause, search_params = build_search_clause(search_query, ['f.Name', 'f.Id', 'f.MeterId', 'f.SsId', 'f.Feeder33Id'])
+    order_clause = build_order_clause(sort_mode)
+    query = f'''
+    SELECT
+        f.Id,
+        f.Name,
+        f.MeterId,
+        lr.Ts AS LastReadingTs,
+        CASE
+            WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
+            ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
+        END AS LoadPercent
+    FROM Feeders11 f
+    OUTER APPLY (
+        SELECT TOP 1 t.Val, t.Ts
+        FROM MeterReadTfes t
+        WHERE t.Mid = f.MeterId
+        ORDER BY t.Ts DESC
+    ) lr
+    WHERE 1=1{search_clause}
+    ORDER BY {order_clause}
+    OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
+    '''
+    count_sql = f'SELECT COUNT(*) FROM Feeders11 f WHERE 1=1{search_clause}'
+
+    try:
+        conn = connect_to_db()
+        try:
+            return jsonify(fetch_paginated_assets(conn, query, count_sql, search_params, page, page_size, 'provodnik'))
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc), 'items': [], 'totalItems': 0, 'totalPages': 0}), 500
+
+
+@app.route('/api/provodnici/<int:provodnik_id>/details')
+def api_provodnik_details(provodnik_id):
+    try:
+        conn = connect_to_db()
+        try:
+            payload = get_provodnik_details(conn, provodnik_id)
+            if payload is None:
+                return jsonify({'error': f'Provodnik with id {provodnik_id} not found'}), 404
+            return jsonify(payload)
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
 
 
 # Dt – Niskonaponske podstanice
@@ -369,40 +704,40 @@ def api_provodnici():
 # + join: Meters (MSN, MultiplierFactor), MeterReadTfes (Val, Ts), Channels (Name, Unit)
 @app.route('/api/potrosaci')
 def api_potrosaci():
-    return jsonify([
-        {"id": 301, "naziv": "DT – Blok 45",         "meter_id": 3001, "feeder11_id": 103, "feeder33_id": 5, "nameplate_rating_kva": 630,
-         "msn": "MSN-DT-301", "multiplier_factor": 1.0,
-         "ocitavanje_val": 598, "ocitavanje_ts": _ts(0,0),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh",
-         "latitude": 44.8125, "longitude": 20.4612},
-        {"id": 302, "naziv": "DT – Blok 23",         "meter_id": 3002, "feeder11_id": 101, "feeder33_id": 3, "nameplate_rating_kva": 400,
-         "msn": "MSN-DT-302", "multiplier_factor": 1.0,
-         "ocitavanje_val": 328, "ocitavanje_ts": _ts(0,1),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh",
-         "latitude": 44.8201, "longitude": 20.4523},
-        {"id": 303, "naziv": "DT – Tržni Centar",    "meter_id": 3003, "feeder11_id": 102, "feeder33_id": 4, "nameplate_rating_kva": 800,
-         "msn": "MSN-DT-303", "multiplier_factor": 1.5,
-         "ocitavanje_val": 568, "ocitavanje_ts": _ts(0,3),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh",
-         "latitude": 44.8334, "longitude": 20.4011},
-        {"id": 304, "naziv": "DT – Bolnica",         "meter_id": 3004, "feeder11_id": 104, "feeder33_id": 6, "nameplate_rating_kva": 630,
-         "msn": "MSN-DT-304", "multiplier_factor": 1.0,
-         "ocitavanje_val": 365, "ocitavanje_ts": _ts(0,5),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh",
-         "latitude": 44.7988, "longitude": 20.4789},
-        {"id": 305, "naziv": "DT – Aerodrom",        "meter_id": 3005, "feeder11_id": 106, "feeder33_id": 7, "nameplate_rating_kva": 1000,
-         "msn": "MSN-DT-305", "multiplier_factor": 2.0,
-         "ocitavanje_val": 760, "ocitavanje_ts": _ts(0,6),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh",
-         "latitude": 44.8184, "longitude": 20.2917},
-        {"id": 306, "naziv": "DT – Pivara",          "meter_id": 3006, "feeder11_id": 105, "feeder33_id": 3, "nameplate_rating_kva": 400,
-         "msn": "MSN-DT-306", "multiplier_factor": 1.0,
-         "ocitavanje_val": 196, "ocitavanje_ts": _ts(1,1),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh",
-         "latitude": 44.8267, "longitude": 20.4699},
-        {"id": 307, "naziv": "DT – Hotel zona",      "meter_id": 3007, "feeder11_id": 101, "feeder33_id": 3, "nameplate_rating_kva": 250,
-         "msn": "MSN-DT-307", "multiplier_factor": 1.0,
-         "ocitavanje_val": 107, "ocitavanje_ts": _ts(1,4),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh",
-         "latitude": 44.8145, "longitude": 20.4658},
-        {"id": 308, "naziv": "DT – Štamparija",      "meter_id": 3008, "feeder11_id": 104, "feeder33_id": 6, "nameplate_rating_kva": 250,
-         "msn": "MSN-DT-308", "multiplier_factor": 1.0,
-         "ocitavanje_val":  90, "ocitavanje_ts": _ts(2,0),  "kanal_naziv": "Active Received Energy", "kanal_jedinica": "kWh",
-         "latitude": 44.8089, "longitude": 20.4831},
-    ])
+    page, page_size, search_query, sort_mode = parse_list_args()
+    search_clause, search_params = build_search_clause(search_query, ['d.Name', 'd.Id', 'd.MeterId', 'd.Feeder11Id', 'd.Feeder33Id'])
+    order_clause = build_order_clause(sort_mode)
+    query = f'''
+    SELECT
+        d.Id,
+        d.Name,
+        d.MeterId,
+        lr.Ts AS LastReadingTs,
+        CASE
+            WHEN d.NameplateRating IS NULL OR d.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
+            ELSE ROUND((lr.Val / d.NameplateRating) * 100.0, 2)
+        END AS LoadPercent
+    FROM DistributionSubstation d
+    OUTER APPLY (
+        SELECT TOP 1 t.Val, t.Ts
+        FROM MeterReadTfes t
+        WHERE t.Mid = d.MeterId
+        ORDER BY t.Ts DESC
+    ) lr
+    WHERE 1=1{search_clause}
+    ORDER BY {order_clause}
+    OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
+    '''
+    count_sql = f'SELECT COUNT(*) FROM DistributionSubstation d WHERE 1=1{search_clause}'
+
+    try:
+        conn = connect_to_db()
+        try:
+            return jsonify(fetch_paginated_assets(conn, query, count_sql, search_params, page, page_size, 'potrosac'))
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc), 'items': [], 'totalItems': 0, 'totalPages': 0}), 500
 
 
 @app.route('/notifikacije')

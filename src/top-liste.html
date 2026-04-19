@@ -351,6 +351,37 @@
         .empty-state svg { width: 48px; height: 48px; fill: #ccc; }
         .empty-state p { font-size: 15px; }
 
+        .pagination-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 8px 0 4px;
+        }
+
+        .page-btn {
+            border: none;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .page-btn[disabled] {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            font-size: 12px;
+            color: #555;
+            min-width: 120px;
+            text-align: center;
+        }
+
         /* ── Loading skeleton ── */
         .skeleton-card {
             background: rgba(255,255,255,0.4);
@@ -594,8 +625,7 @@
             <!-- Filter bar -->
             <div class="filter-bar">
                 <div class="filter-tabs">
-                    <button class="filter-tab active" data-tab="svi">All</button>
-                    <button class="filter-tab" data-tab="fideri">Feeders 33kV</button>
+                    <button class="filter-tab active" data-tab="fideri">Feeders 33kV</button>
                     <button class="filter-tab" data-tab="provodnici">Feeders 11kV</button>
                     <button class="filter-tab" data-tab="potrosaci">Substations</button>
                 </div>
@@ -620,6 +650,11 @@
                 <div class="empty-state" id="emptyState">
                     <svg viewBox="0 0 24 24"><path d="M9.172 16.172a4 4 0 0 1 5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#ccc" stroke-width="2" fill="none"/></svg>
                     <p>No results found</p>
+                </div>
+                <div class="pagination-bar">
+                    <button id="prevPageBtn" class="page-btn">Prev</button>
+                    <div id="pageInfo" class="page-info">Page 1 / 1</div>
+                    <button id="nextPageBtn" class="page-btn">Next</button>
                 </div>
             </div>
         </div>
