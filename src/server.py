@@ -473,6 +473,67 @@ def map_view():
     with open(files[0], encoding='utf-8', mode='r') as f:
         return f.read()
 
+@app.route('/api/loss_graph')
+def loss_graph():
+    try:
+        conn = connect_to_db()
+        try:
+            today = date.today().strftime('%Y-%m-%d')
+            cur = conn.cursor()
+
+            cur.execute(
+                "SELECT AVG(LossPercentage) FROM FeederLosses11 WHERE GeneratedAt = %s",
+                (today,)
+            )
+            row = cur.fetchone()
+            avg_loss_11 = round(float(row[0]), 4) if row and row[0] is not None else 0.0
+
+            cur.execute(
+                "SELECT AVG(LossPercentage) FROM FeederLosses33 WHERE GeneratedAt = %s",
+                (today,)
+            )
+            row = cur.fetchone()
+            avg_loss_33 = round(float(row[0]), 4) if row and row[0] is not None else 0.0
+
+            cur.close()
+            return jsonify({
+                'feeder11_avg_loss_pct': avg_loss_11,
+                'feeder33_avg_loss_pct': avg_loss_33,
+            })
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
+    
+@app.route('/api/loss_total')
+def loss_total():
+    try:
+        conn = connect_to_db()
+        try:
+            today = date.today().strftime('%Y-%m-%d')
+            cur = conn.cursor()
+
+            cur.execute(
+                "SELECT AVG(LossPercentage) FROM FeederLosses11 WHERE GeneratedAt = %s",
+                (today,)
+            )
+            row = cur.fetchone()
+            avg_loss_11 = float(row[0]) if row and row[0] is not None else 0.0
+
+            cur.execute(
+                "SELECT AVG(LossPercentage) FROM FeederLosses33 WHERE GeneratedAt = %s",
+                (today,)
+            )
+            row = cur.fetchone()
+            avg_loss_33 = float(row[0]) if row and row[0] is not None else 0.0
+
+            cur.close()
+            total = round((avg_loss_11 + avg_loss_33) / 2, 4)
+            return jsonify({'total_avg_loss_pct': total})
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc)}), 500
 
 @app.route('/api/dashboard-data')
 def dashboard_data():
