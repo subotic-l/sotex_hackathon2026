@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>StatPRO - Meter List</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(110deg, #f0f0f0 0%, #f5e8b6 100%);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 68px;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px 0;
+            gap: 8px;
+            flex-shrink: 0;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+        }
+        .sidebar-logo {
+            color: #1a1a1a;
+            font-weight: 700;
+            font-size: 11px;
+            text-align: center;
+            margin-bottom: 20px;
+            line-height: 1.2;
+            text-decoration: none;
+        }
+        .sidebar-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: transparent;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+            text-decoration: none;
+        }
+        .sidebar-icon.active { background: #1a1a1a; }
+        .sidebar-icon:hover:not(.active) { background: #f0f0f0; }
+        .sidebar-icon svg { width: 18px; height: 18px; fill: #888; }
+        .sidebar-icon.active svg { fill: #fff; }
+        .sidebar-bottom { margin-top: auto; }
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .topbar {
+            height: 60px;
+            background: #fff;
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            gap: 16px;
+            border-bottom: 1px solid #e8eaf0;
+            flex-shrink: 0;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: #f5f6fa;
+            border-radius: 8px;
+            padding: 8px 14px;
+            width: 280px;
+        }
+        .search-box svg { width: 16px; height: 16px; fill: #aab; flex-shrink: 0; }
+        .search-box input {
+            border: none;
+            background: transparent;
+            outline: none;
+            font-size: 14px;
+            color: #333;
+            width: 100%;
+        }
+        .search-box input::placeholder { color: #aab; }
+        .topbar-spacer { flex: 1; }
+        .user-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: #e0e4f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .user-name {
+            font-size: 14px;
+            color: #444;
+            font-weight: 500;
+        }
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 16px;
+            overflow: hidden;
+        }
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        .page-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a1a;
+        }
+        .page-subtitle {
+            font-size: 13px;
+            color: #888;
+            margin-top: 2px;
+        }
+        .filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+        }
+        .filter-tabs {
+            display: flex;
+            gap: 6px;
+            background: rgba(255,255,255,0.5);
+            border-radius: 10px;
+            padding: 4px;
+        }
+        .filter-tab {
+            padding: 6px 14px;
+            border-radius: 7px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            color: #666;
+            background: transparent;
+            border: none;
+            transition: all 0.2s;
+        }
+        .filter-tab.active {
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .filter-tab:hover:not(.active) { background: rgba(0,0,0,0.06); }
+        .sort-select {
+            padding: 7px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.5);
+            font-size: 13px;
+            color: #444;
+            cursor: pointer;
+            outline: none;
+        }
+        .filter-spacer { flex: 1; }
+        .count-badge {
+            background: rgba(255,255,255,0.5);
+            border-radius: 8px;
+            padding: 6px 12px;
+            font-size: 13px;
+            color: #555;
+        }
+        .count-badge span { font-weight: 700; color: #1a1a1a; }
+        .cards-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .cards-wrapper::-webkit-scrollbar { width: 4px; }
+        .cards-wrapper::-webkit-scrollbar-track { background: transparent; }
+        .cards-wrapper::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 2px; }
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 14px;
+            padding-bottom: 8px;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 16px;
+            padding: 16px;
+            cursor: pointer;
+            transition: transform 0.18s, box-shadow 0.18s, background 0.18s;
+            position: relative;
+            overflow: hidden;
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+            background: rgba(255,255,255,0.65);
+        }
+        .card-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            letter-spacing: 0.3px;
+        }
+        .card-badges {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+        .badge-meter { background: #e8f0ff; color: #274c9b; }
+        .badge-status-up { background: #e7f8ef; color: #1f7a47; }
+        .badge-status-down { background: #fdeceb; color: #b0302f; }
+        .badge-status-recent { background: #fff3d8; color: #9b6400; }
+        .badge-status-unknown { background: #eeeeee; color: #666; }
+        .card-naziv {
+            font-size: 15px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 10px;
+            line-height: 1.3;
+        }
+        .card-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .meta-row {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 13px;
+            color: #555;
+        }
+        .meta-row svg {
+            width: 14px;
+            height: 14px;
+            fill: #999;
+            flex-shrink: 0;
+        }
+        .empty-state {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 60px 20px;
+            color: #aaa;
+        }
+        .empty-state svg { width: 48px; height: 48px; fill: #ccc; }
+        .empty-state p { font-size: 15px; }
+        .pagination-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 8px 0 4px;
+        }
+        .page-btn {
+            border: none;
+            background: #1a1a1a;
+            color: #fff;
+            border-radius: 8px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .page-btn[disabled] {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .page-info {
+            font-size: 12px;
+            color: #555;
+            min-width: 120px;
+            text-align: center;
+        }
+        .skeleton-card {
+            background: rgba(255,255,255,0.4);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        @keyframes shimmer {
+            0% { background-position: -400px 0; }
+            100% { background-position: 400px 0; }
+        }
+        .skeleton-line {
+            height: 14px;
+            border-radius: 7px;
+            background: linear-gradient(90deg, #eee 25%, #f8f8f8 50%, #eee 75%);
+            background-size: 800px 100%;
+            animation: shimmer 1.4s infinite;
+            margin-bottom: 10px;
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.35);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        .modal {
+            background: #fff;
+            border-radius: 20px;
+            width: min(560px, calc(100vw - 40px));
+            max-height: calc(100vh - 60px);
+            overflow-y: auto;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            padding: 22px 24px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+        }
+        .modal-title {
+            font-size: 19px;
+            font-weight: 700;
+            color: #1a1a1a;
+            line-height: 1.3;
+        }
+        .modal-subtitle {
+            font-size: 13px;
+            color: #888;
+            margin-top: 3px;
+        }
+        .modal-close {
+            margin-left: auto;
+            width: 30px;
+            height: 30px;
+            border-radius: 8px;
+            background: #f5f5f5;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+        }
+        .modal-body { padding: 20px 24px 24px; }
+        .info-item {
+            background: #f8f8f8;
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+        }
+        .info-label {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+        .info-value {
+            font-size: 15px;
+            font-weight: 600;
+            color: #1a1a1a;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <aside class="sidebar">
+        <a href="/" class="sidebar-logo">Stat<br>PRO</a>
+        <a href="/" class="sidebar-icon">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        </a>
+        <a href="/top-liste" class="sidebar-icon">
+            <svg viewBox="0 0 24 24" stroke="#888" stroke-width="2" fill="none"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3" cy="6" r="1.5" fill="#888" stroke="none"/><circle cx="3" cy="12" r="1.5" fill="#888" stroke="none"/><circle cx="3" cy="18" r="1.5" fill="#888" stroke="none"/></svg>
+        </a>
+        <a href="/notifikacije" class="sidebar-icon">
+            <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </a>
+        <a href="/meter-list" class="sidebar-icon active">
+            <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </a>
+
+        <div class="sidebar-bottom">
+            <div class="sidebar-icon">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+            </div>
+            <div class="sidebar-icon" style="margin-top:8px">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <div class="search-box">
+                <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="22" y2="22" stroke="#aab" stroke-width="2"/></svg>
+                <input type="text" id="globalSearch" placeholder="Search meters" />
+            </div>
+            <div class="topbar-spacer"></div>
+            <div class="user-avatar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#4c6ef5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+            </div>
+            <span class="user-name">Jayden</span>
+        </header>
+
+        <div class="content">
+            <div class="page-header">
+                <div>
+                    <div class="page-title">meter-list</div>
+                    <div class="page-subtitle">All Meters</div>
+                </div>
+            </div>
+
+            <div class="filter-bar">
+                <div class="filter-tabs">
+                    <button class="filter-tab active" data-status="" type="button">All</button>
+                    <button class="filter-tab" data-status="up" type="button">Up</button>
+                    <button class="filter-tab" data-status="down" type="button">Down</button>
+                    <button class="filter-tab" data-status="recently_down" type="button">Recently Down</button>
+                </div>
+
+                <select class="sort-select" id="sortSelect">
+                    <option value="naziv_az">Name A-Z</option>
+                    <option value="naziv_za">Name Z-A</option>
+                </select>
+
+                <div class="filter-spacer"></div>
+                <div class="count-badge">Showing: <span id="cardCount">0</span></div>
+            </div>
+
+            <div class="cards-wrapper">
+                <div class="cards-grid" id="cardsGrid"></div>
+                <div class="empty-state" id="emptyState">
+                    <svg viewBox="0 0 24 24"><path d="M9.172 16.172a4 4 0 0 1 5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#ccc" stroke-width="2" fill="none"/></svg>
+                    <p>No results found</p>
+                </div>
+                <div class="pagination-bar">
+                    <button id="prevPageBtn" class="page-btn">Prev</button>
+                    <div id="pageInfo" class="page-info">Page 1 / 1</div>
+                    <button id="nextPageBtn" class="page-btn">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-title" id="modalTitle">—</div>
+                    <div class="modal-subtitle" id="modalSubtitle">—</div>
+                </div>
+                <button class="modal-close" id="modalClose">✕</button>
+            </div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script src="meter-list.js"></script>
+</body>
+</html>

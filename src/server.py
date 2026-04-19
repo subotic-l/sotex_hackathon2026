@@ -57,6 +57,32 @@ def ensure_source_indexes(conn):
         ON {SOURCE_TABLE} (Mid, Ts DESC)
         INCLUDE (Val);
     END
+
+    IF OBJECT_ID('Meters', 'U') IS NOT NULL
+       AND NOT EXISTS (
+           SELECT 1
+           FROM sys.indexes
+           WHERE name = 'IX_Meters_MSN'
+             AND object_id = OBJECT_ID('Meters')
+       )
+    BEGIN
+        CREATE INDEX IX_Meters_MSN
+        ON Meters (MSN)
+        INCLUDE (Id, MultiplierFactor);
+    END
+
+    IF OBJECT_ID('{HISTORY_TABLE}', 'U') IS NOT NULL
+       AND NOT EXISTS (
+           SELECT 1
+           FROM sys.indexes
+           WHERE name = 'IX_{HISTORY_TABLE}_IdMeter_SnapshotDate'
+             AND object_id = OBJECT_ID('{HISTORY_TABLE}')
+       )
+    BEGIN
+        CREATE INDEX IX_{HISTORY_TABLE}_IdMeter_SnapshotDate
+        ON {HISTORY_TABLE} (IdMeter, SnapshotDate DESC)
+        INCLUDE (Status, Reason);
+    END
     '''
 
     cur = conn.cursor()
@@ -407,6 +433,10 @@ def fetch_paginated_assets(conn, from_sql, count_sql, params, page, page_size, t
             'ts_id': row[5] if len(row) > 5 else None,
             'ts_name': row[6] if len(row) > 6 else None,
             'opterecenje_pct': float(row[7]) if len(row) > 7 and row[7] is not None else None,
+            'msn': row[8] if len(row) > 8 else None,
+            'multiplier_factor': float(row[9]) if len(row) > 9 and row[9] is not None else None,
+            'status': row[10] if len(row) > 10 else None,
+            'status_reason': row[11] if len(row) > 11 else None,
             'tip': tip,
         })
 
@@ -653,6 +683,19 @@ def top_liste_js():
         return Response(f.read(), mimetype='application/javascript')
 
 
+@app.route('/meter-list')
+def meter_list_view():
+    with open(os.path.join(os.path.dirname(__file__), 'meter-list.html'), encoding='utf-8') as f:
+        return f.read()
+
+
+@app.route('/meter-list.js')
+def meter_list_js():
+    from flask import Response
+    with open(os.path.join(os.path.dirname(__file__), 'meter-list.js'), encoding='utf-8') as f:
+        return Response(f.read(), mimetype='application/javascript')
+
+
 def _ts(days_ago=0, hours_ago=0):
     return (datetime.now() - timedelta(days=days_ago, hours=hours_ago)).strftime('%Y-%m-%dT%H:%M:%S')
 
@@ -815,6 +858,195 @@ def api_potrosaci():
         conn = connect_to_db()
         try:
             return jsonify(fetch_paginated_assets(conn, query, count_sql, search_params, page, page_size, 'potrosac'))
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc), 'items': [], 'totalItems': 0, 'totalPages': 0}), 500
+
+
+@app.route('/api/meter-list')
+def api_meter_list():
+    page, page_size, search_query, sort_mode = parse_list_args()
+    status_filter = request.args.get('status', '').strip().lower()
+    snapshot_date = date.today() - timedelta(days=1)
+    search_clause, search_params = build_search_clause(search_query, ['m.Id', 'm.MSN'])
+    status_filter_value = None
+    if status_filter == 'up':
+        status_filter_value = 'Up'
+    elif status_filter == 'down':
+        status_filter_value = 'Down'
+    elif status_filter in ('recently_down', 'recently down'):
+        status_filter_value = 'Down recently'
+
+    order_clause = build_order_clause(sort_mode)
+    meter_status_expr = """
+    CASE
+        WHEN ls.Status = 'OK' THEN 'Up'
+        WHEN ls.Status = 'DOWN' AND ls.Reason = N'Nepravilni vremenski razmaci' THEN 'Down recently'
+        WHEN ls.Status = 'DOWN' AND ls.Reason LIKE N'Prvo merenje je previše staro%' THEN 'Down'
+        WHEN ls.Status = 'DOWN' THEN 'Down'
+        ELSE 'Down'
+    END
+    """
+    query = f'''
+    ;WITH MeterBase AS (
+        SELECT
+            m.Id,
+            COALESCE(NULLIF(m.MSN, ''), CONCAT('Meter ', CAST(m.Id AS NVARCHAR(50)))) AS Name,
+            m.Id AS MeterId,
+            m.MSN,
+            m.MultiplierFactor,
+            lr.Val AS LastReadingVal,
+            lr.Ts AS LastReadingTs
+        FROM Meters m
+        CROSS APPLY (
+            SELECT TOP 1 t.Val, t.Ts
+            FROM MeterReadTfes t
+            WHERE t.Mid = m.Id
+            ORDER BY t.Ts DESC
+        ) lr
+        WHERE 1=1{search_clause}
+    )
+    SELECT
+        x.Id,
+        x.Name,
+        x.MeterId,
+        x.LastReadingVal,
+        x.LastReadingTs,
+        x.TsId,
+        x.TsName,
+        x.LoadPercent,
+        x.MSN,
+        x.MultiplierFactor,
+        x.MeterStatus,
+        x.MeterStatusReason
+    FROM (
+        SELECT
+            mb.Id,
+            mb.Name,
+            mb.MeterId,
+            mb.LastReadingVal,
+            mb.LastReadingTs,
+            CAST(NULL AS INT) AS TsId,
+            CAST(NULL AS NVARCHAR(200)) AS TsName,
+            CAST(NULL AS FLOAT) AS LoadPercent,
+            mb.MSN,
+            mb.MultiplierFactor,
+            {meter_status_expr} AS MeterStatus,
+            ls.Reason AS MeterStatusReason
+        FROM MeterBase mb
+        OUTER APPLY (
+            SELECT TOP 1 h.Status, h.Reason
+            FROM {HISTORY_TABLE} h
+            WHERE h.IdMeter = mb.Id
+              AND h.SnapshotDate <= %s
+            ORDER BY h.SnapshotDate DESC, h.UpdatedAt DESC
+        ) ls
+    ) x
+    WHERE 1=1
+    {f'AND x.MeterStatus = %s' if status_filter_value else ''}
+    ORDER BY {order_clause}
+    OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
+    '''
+    if status_filter_value:
+        count_sql = f'''
+        ;WITH MeterBase AS (
+            SELECT
+                m.Id
+            FROM Meters m
+            CROSS APPLY (
+                SELECT TOP 1 t.Ts
+                FROM MeterReadTfes t
+                WHERE t.Mid = m.Id
+                ORDER BY t.Ts DESC
+            ) lr
+            WHERE 1=1{search_clause}
+        )
+        SELECT COUNT(*)
+        FROM (
+            SELECT
+                mb.Id,
+                CASE
+                    WHEN ls.Status = 'OK' THEN 'Up'
+                    WHEN ls.Status = 'DOWN' AND ls.Reason = N'Nepravilni vremenski razmaci' THEN 'Down recently'
+                    WHEN ls.Status = 'DOWN' AND ls.Reason LIKE N'Prvo merenje je previše staro%' THEN 'Down'
+                    WHEN ls.Status = 'DOWN' THEN 'Down'
+                    ELSE 'Down'
+                END AS MeterStatus
+            FROM MeterBase mb
+            OUTER APPLY (
+                SELECT TOP 1 h.Status, h.Reason
+                FROM {HISTORY_TABLE} h
+                WHERE h.IdMeter = mb.Id
+                  AND h.SnapshotDate <= %s
+                ORDER BY h.SnapshotDate DESC, h.UpdatedAt DESC
+            ) ls
+        ) x
+        WHERE x.MeterStatus = %s
+        '''
+    else:
+        count_sql = f'''
+        SELECT COUNT(*)
+        FROM Meters m
+        CROSS APPLY (
+            SELECT TOP 1 t.Ts
+            FROM MeterReadTfes t
+            WHERE t.Mid = m.Id
+            ORDER BY t.Ts DESC
+        ) lr
+        WHERE 1=1{search_clause}
+        '''
+
+    try:
+        conn = connect_to_db()
+        try:
+            query_params = search_params + [snapshot_date]
+            if status_filter_value:
+                query_params.append(status_filter_value)
+
+            count_params = list(search_params)
+            if status_filter_value:
+                count_params.extend([snapshot_date, status_filter_value])
+
+            offset = (page - 1) * page_size
+
+            cur = conn.cursor()
+            try:
+                cur.execute(count_sql, tuple(count_params))
+                total_items = int(cur.fetchone()[0] or 0)
+
+                cur.execute(query, tuple(query_params + [offset, page_size]))
+                rows = cur.fetchall()
+            finally:
+                cur.close()
+
+            items = []
+            for row in rows:
+                items.append({
+                    'id': row[0],
+                    'naziv': row[1],
+                    'meter_id': row[2],
+                    'ocitavanje_val': float(row[3]) if row[3] is not None else None,
+                    'ocitavanje_ts': row[4].isoformat() if row[4] else None,
+                    'ts_id': row[5],
+                    'ts_name': row[6],
+                    'opterecenje_pct': float(row[7]) if row[7] is not None else None,
+                    'msn': row[8],
+                    'multiplier_factor': float(row[9]) if row[9] is not None else None,
+                    'status': row[10],
+                    'status_reason': row[11],
+                    'tip': 'meter',
+                })
+
+            payload = {
+                'page': page,
+                'pageSize': page_size,
+                'totalItems': total_items,
+                'totalPages': (total_items + page_size - 1) // page_size if page_size else 0,
+                'items': items,
+            }
+            payload['snapshotDate'] = snapshot_date.isoformat()
+            return jsonify(payload)
         finally:
             conn.close()
     except Exception as exc:
