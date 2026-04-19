@@ -674,10 +674,7 @@ def api_fideri():
         lr.Ts AS LastReadingTs,
         f.TsId,
         ts.Name AS TsName,
-        CASE
-            WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
-            ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
-        END AS LoadPercent
+        fl.LossPercentage AS LoadPercent
     FROM Feeders33 f
     LEFT JOIN TransmissionStations ts ON ts.Id = f.TsId
     OUTER APPLY (
@@ -686,6 +683,11 @@ def api_fideri():
         WHERE t.Mid = f.MeterId
         ORDER BY t.Ts DESC
     ) lr
+    LEFT JOIN (
+        SELECT FeederId, LossPercentage
+        FROM FeederLosses33
+        WHERE GeneratedAt = CAST(GETDATE() AS DATE)
+    ) fl ON fl.FeederId = f.Id
     WHERE 1=1{search_clause}
     ORDER BY {order_clause}
     OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
