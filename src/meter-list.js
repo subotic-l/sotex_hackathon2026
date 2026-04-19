@@ -7,7 +7,9 @@ let statusFilter = '';
 let currentPage = 1;
 let totalPages = 1;
 let totalItems = 0;
-const PAGE_SIZE = 24;
+let activeMeterId = null;
+let historyRequestToken = 0;
+const PAGE_SIZE = 12;
 
 function getStatusMeta(status) {
     if (status === 'Up') {
@@ -52,6 +54,91 @@ function fmtDate(iso) {
     return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
 }
 
+function fmtDateTime(iso) {
+    if (!iso) return '-';
+    const d = new Date(iso);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function localDateInputValue(date = new Date()) {
+    const pad = (n) => String(n).padStart(2, '0');
+    const normalizedDate = date instanceof Date ? date : new Date(date);
+    return `${normalizedDate.getFullYear()}-${pad(normalizedDate.getMonth() + 1)}-${pad(normalizedDate.getDate())}`;
+}
+
+function normalizeDisplayStatus(status) {
+    if (status === 'Up') return 'Up';
+    return 'Down';
+}
+
+async function fetchMeterHistory(meterId, fromDate, toDate) {
+    const params = new URLSearchParams({ from: fromDate, to: toDate });
+    const response = await fetch(`${API_BASE}/api/meter-list/${meterId}/history?${params.toString()}`);
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+    return response.json();
+}
+
+function renderHistoryRows(items) {
+    const list = document.getElementById('historyList');
+    if (!list) return;
+
+    if (!items || items.length === 0) {
+        list.innerHTML = '<div class="history-empty">No status rows for selected date range.</div>';
+        return;
+    }
+
+    list.innerHTML = items.map((item) => {
+        const displayStatus = normalizeDisplayStatus(item.status);
+        const statusMeta = getStatusMeta(displayStatus);
+        const periodLine = displayStatus === 'Down'
+            ? `Down period: ${fmtDateTime(item.down_from)} - ${fmtDateTime(item.down_to)}`
+            : `Reference time: ${fmtDateTime(item.reference_date_time)}`;
+        return `
+            <div class="history-row">
+                <div class="history-row-head">
+                    <div class="history-row-title">${fmtDate(item.snapshot_date)}</div>
+                    <span class="card-badge ${statusMeta.className}">${statusMeta.label}</span>
+                </div>
+                <div class="history-row-meta">${periodLine}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function loadHistoryForActiveMeter() {
+    const meterId = activeMeterId;
+    const fromInput = document.getElementById('historyFromDate');
+    const toInput = document.getElementById('historyToDate');
+    const loadButton = document.getElementById('loadHistoryBtn');
+    const list = document.getElementById('historyList');
+
+    if (!meterId || !fromInput || !toInput || !list) return;
+
+    const fromDate = fromInput.value || localDateInputValue();
+    const toDate = toInput.value || localDateInputValue();
+
+    if (loadButton) loadButton.disabled = true;
+    list.innerHTML = '<div class="history-empty">Loading status history...</div>';
+
+    const token = ++historyRequestToken;
+    try {
+        const payload = await fetchMeterHistory(meterId, fromDate, toDate);
+        if (token !== historyRequestToken) return;
+        renderHistoryRows(payload.items || []);
+    } catch (error) {
+        if (token !== historyRequestToken) return;
+        console.error('Load meter history failed:', error);
+        list.innerHTML = '<div class="history-empty">Failed to load meter history.</div>';
+    } finally {
+        if (token === historyRequestToken && loadButton) {
+            loadButton.disabled = false;
+        }
+    }
+}
+
 function updatePaginationUi() {
     const prevBtn = document.getElementById('prevPageBtn');
     const nextBtn = document.getElementById('nextPageBtn');
@@ -87,7 +174,6 @@ function render() {
     empty.style.display = 'none';
 
     grid.innerHTML = allItems.map((item) => {
-        const readingValue = item.ocitavanje_val != null ? `${item.ocitavanje_val}` : '-';
         const status = getStatusMeta(item.status);
         return `
         <div class="card" data-id="${item.id}">
@@ -111,21 +197,21 @@ function render() {
             const item = allItems.find((x) => String(x.id) === id);
             if (!item) return;
 
+            activeMeterId = item.meter_id ?? item.id;
+
             document.getElementById('modalTitle').textContent = item.naziv || '-';
             document.getElementById('modalSubtitle').textContent = `Meter · ID: ${item.id}`;
             document.getElementById('modalBody').innerHTML = `
                 <div class="info-item">
-                    <div class="info-label">Details endpoint</div>
-                    <div class="info-value">Pending implementation for individual meter details.</div>
-                </div>
-                <div class="info-item">
                     <div class="info-label">Status</div>
                     <div class="info-value">${item.status || 'Unknown'}</div>
                 </div>
+                ${(item.status === 'Down recently' || item.status === 'Recently Down') ? `
                 <div class="info-item">
-                    <div class="info-label">Status reason</div>
-                    <div class="info-value">${item.status_reason || '-'}</div>
+                    <div class="info-label">Down period</div>
+                    <div class="info-value">${fmtDateTime(item.down_from)} - ${fmtDateTime(item.down_to)}</div>
                 </div>
+                ` : ''}
                 <div class="info-item">
                     <div class="info-label">Meter ID</div>
                     <div class="info-value">${item.meter_id ?? '-'}</div>
@@ -138,8 +224,42 @@ function render() {
                     <div class="info-label">Multiplier Factor</div>
                     <div class="info-value">${item.multiplier_factor ?? '-'}</div>
                 </div>
+                <div class="info-item">
+                    <div class="info-label">Status history</div>
+                    <div class="history-controls">
+                        <div class="history-field">
+                            <label for="historyFromDate">From</label>
+                            <input type="date" id="historyFromDate" value="${localDateInputValue(new Date('2026-04-16T00:00:00'))}" />
+                        </div>
+                        <div class="history-field">
+                            <label for="historyToDate">To</label>
+                            <input type="date" id="historyToDate" value="${localDateInputValue(new Date('2026-04-16T00:00:00'))}" />
+                        </div>
+                        <div class="history-field">
+                            <label>&nbsp;</label>
+                            <button type="button" id="loadHistoryBtn">Load</button>
+                        </div>
+                    </div>
+                    <div class="history-list" id="historyList"></div>
+                </div>
             `;
             document.getElementById('modalOverlay').classList.add('open');
+
+            const loadHistoryBtn = document.getElementById('loadHistoryBtn');
+            const fromInput = document.getElementById('historyFromDate');
+            const toInput = document.getElementById('historyToDate');
+
+            if (loadHistoryBtn) {
+                loadHistoryBtn.addEventListener('click', loadHistoryForActiveMeter);
+            }
+            if (fromInput) {
+                fromInput.addEventListener('change', loadHistoryForActiveMeter);
+            }
+            if (toInput) {
+                toInput.addEventListener('change', loadHistoryForActiveMeter);
+            }
+
+            loadHistoryForActiveMeter();
         });
     });
 }
@@ -153,9 +273,7 @@ async function loadCurrentPage() {
         currentPage = Math.min(Math.max(Number(payload.page || currentPage), 1), totalPages);
 
         const subtitle = document.querySelector('.page-subtitle');
-        if (subtitle) {
-            subtitle.textContent = payload.snapshotDate ? `Snapshot: ${fmtDate(payload.snapshotDate)}` : 'All Meters';
-        }
+
 
         allItems = payload.items || [];
         render();

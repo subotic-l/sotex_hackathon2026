@@ -17,7 +17,7 @@ let sortMode = 'naziv_az';
 let currentPage = 1;
 let totalPages = 1;
 let totalItems = 0;
-const PAGE_SIZE = 24;
+const PAGE_SIZE = 8;
 
 async function fetchCategoryPage() {
     const endpoint = ENDPOINT_BY_TAB[activeTab];

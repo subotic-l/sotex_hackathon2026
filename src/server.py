@@ -387,6 +387,14 @@ def parse_list_args():
     sort_mode = request.args.get('sort', 'najnoviji').strip()
     return page, page_size, search_query, sort_mode
 
+def parse_date_arg(value, default=None):
+    if not value:
+        return default
+    try:
+        return datetime.strptime(value, '%Y-%m-%d').date()
+    except ValueError:
+        return default
+
 
 def build_search_clause(search_query, columns):
     if not search_query:
@@ -405,6 +413,7 @@ def build_order_clause(sort_mode):
         'naziv_za': 'Name DESC, Id DESC',
         'opterecenje_desc': 'LoadPercent DESC, Id DESC',
         'opterecenje_asc': 'LoadPercent ASC, Id ASC',
+        'ocitavanje_desc': 'LastReadingTs DESC, Id DESC',
     }
     return sort_map.get(sort_mode, sort_map['najnoviji'])
 
@@ -613,6 +622,65 @@ def meters_history():
             conn.close()
     except Exception as exc:
         return jsonify({'error': str(exc), 'items': [], 'totalItems': 0, 'totalPages': 0}), 500
+
+@app.route('/api/meter-list/<int:meter_id>/history')
+def api_meter_list_history(meter_id):
+    from_date = parse_date_arg(request.args.get('from'), date.today())
+    to_date = parse_date_arg(request.args.get('to'), from_date)
+
+    if from_date and to_date and from_date > to_date:
+        from_date, to_date = to_date, from_date
+
+    query = f'''
+    SELECT
+        h.SnapshotDate,
+        h.Status,
+        h.Reason,
+        h.ReferenceDateTime,
+        h.ReadingCount,
+        h.BadIntervals,
+        h.DownFrom,
+        h.DownTo
+    FROM {HISTORY_TABLE} h
+    WHERE h.IdMeter = %s
+      AND h.SnapshotDate >= %s
+      AND h.SnapshotDate <= %s
+    ORDER BY h.SnapshotDate ASC, h.UpdatedAt ASC;
+    '''
+
+    try:
+        conn = connect_to_db()
+        try:
+            cur = conn.cursor()
+            try:
+                cur.execute(query, (meter_id, from_date, to_date))
+                items = []
+                for row in cur.fetchall():
+                    items.append({
+                        'snapshot_date': row[0].isoformat() if row[0] else None,
+                        'status': 'Up' if row[1] == 'OK' else 'Down',
+                        'raw_status': row[1],
+                        'reason': row[2],
+                        'reference_date_time': row[3].isoformat() if row[3] else None,
+                        'reading_count': row[4],
+                        'bad_intervals': row[5],
+                        'down_from': row[6].isoformat() if row[6] else None,
+                        'down_to': row[7].isoformat() if row[7] else None,
+                    })
+            finally:
+                cur.close()
+
+            return jsonify({
+                'meterId': meter_id,
+                'fromDate': from_date.isoformat() if from_date else None,
+                'toDate': to_date.isoformat() if to_date else None,
+                'totalItems': len(items),
+                'items': items,
+            })
+        finally:
+            conn.close()
+    except Exception as exc:
+        return jsonify({'error': str(exc), 'items': [], 'totalItems': 0}), 500
 
 
 @app.route('/api/meters/down')
@@ -919,7 +987,9 @@ def api_meter_list():
         x.MSN,
         x.MultiplierFactor,
         x.MeterStatus,
-        x.MeterStatusReason
+        x.MeterStatusReason,
+        x.DownFrom,
+        x.DownTo
     FROM (
         SELECT
             mb.Id,
@@ -933,10 +1003,12 @@ def api_meter_list():
             mb.MSN,
             mb.MultiplierFactor,
             {meter_status_expr} AS MeterStatus,
-            ls.Reason AS MeterStatusReason
+                        ls.Reason AS MeterStatusReason,
+                        ls.DownFrom AS DownFrom,
+                        ls.DownTo AS DownTo
         FROM MeterBase mb
         OUTER APPLY (
-            SELECT TOP 1 h.Status, h.Reason
+                        SELECT TOP 1 h.Status, h.Reason, h.DownFrom, h.DownTo
             FROM {HISTORY_TABLE} h
             WHERE h.IdMeter = mb.Id
               AND h.SnapshotDate <= %s
@@ -1035,6 +1107,8 @@ def api_meter_list():
                     'multiplier_factor': float(row[9]) if row[9] is not None else None,
                     'status': row[10],
                     'status_reason': row[11],
+                    'down_from': row[12].isoformat() if row[12] else None,
+                    'down_to': row[13].isoformat() if row[13] else None,
                     'tip': 'meter',
                 })
 
