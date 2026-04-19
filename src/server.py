@@ -290,7 +290,7 @@ def get_fider_details(conn, fider_id):
         'MultiplierFactor': row[7],
         'LastVal': row[8],
         'LastTs': row[9].isoformat() if row[9] else None,
-        'LoadPercent': float(row[10]) if row[10] is not None else None,
+        'LossPercentage': float(loss_row[0]) if loss_row and loss_row[0] is not None else None,
         'ChannelName': None,
         'Unit': None,
     }
@@ -355,7 +355,7 @@ def get_provodnik_details(conn, provodnik_id):
         'MultiplierFactor': row[9],
         'LastVal': row[10],
         'LastTs': row[11].isoformat() if row[11] else None,
-        'LoadPercent': float(row[12]) if row[12] is not None else None,
+        'LossPercentage': float(loss_row[0]) if loss_row and loss_row[0] is not None else None,
         'ChannelName': None,
         'Unit': None,
     }
@@ -748,10 +748,7 @@ def api_provodnici():
         lr.Ts AS LastReadingTs,
         f.TsId,
         ts.Name AS TsName,
-        CASE
-            WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
-            ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
-        END AS LoadPercent
+        fl.LossPercentage AS LoadPercent
     FROM Feeders11 f
     LEFT JOIN TransmissionStations ts ON ts.Id = f.TsId
     OUTER APPLY (
@@ -760,6 +757,11 @@ def api_provodnici():
         WHERE t.Mid = f.MeterId
         ORDER BY t.Ts DESC
     ) lr
+    LEFT JOIN (
+        SELECT FeederId, LossPercentage
+        FROM FeederLosses11
+        WHERE GeneratedAt = CAST(GETDATE() AS DATE)
+    ) fl ON fl.FeederId = f.Id
     WHERE 1=1{search_clause}
     ORDER BY {order_clause}
     OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
