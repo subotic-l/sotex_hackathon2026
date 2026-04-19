@@ -71,8 +71,8 @@ function badgeLabel(tip) {
 }
 
 function loadClass(pct) {
-    if (pct >= 80) return 'high';
-    if (pct >= 50) return 'medium';
+    if (pct >= 20) return 'high';
+    if (pct >= 10) return 'medium';
     return 'low';
 }
 
@@ -136,10 +136,10 @@ function render() {
             </div>
             <div class="card-footer">
                 <div class="load-bar-wrap">
-                    <div class="load-label">Load</div>
+                    <div class="load-label">Loss</div>
                     <div class="load-bar-bg"><div class="load-bar-fill ${cls}" style="width:${pct}%"></div></div>
                 </div>
-                <div class="load-value">${pct}%</div>
+                <div class="load-value">${pct != null ? pct.toFixed(2) : '—'}%</div>
             </div>
         </div>`;
     }).join('');
@@ -174,7 +174,7 @@ function render() {
                     multiplier_factor: details.MultiplierFactor,
                     ocitavanje_val: details.LastVal,
                     ocitavanje_ts: details.LastTs,
-                    opterecenje_pct: details.LoadPercent != null ? Math.round(details.LoadPercent) : (summaryItem?.opterecenje_pct ?? 0),
+                    opterecenje_pct: details.LossPercentage != null ? Math.round(details.LossPercentage) : (summaryItem?.opterecenje_pct ?? 0),
                     tip,
                     kanal_naziv: details.ChannelName,
                     kanal_jedinica: details.Unit,
@@ -237,8 +237,8 @@ function openModal(item) {
                 <div class="info-value">${badgeLabel(item.tip)}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Load</div>
-                <div class="info-value">${pct}%</div>
+                <div class="info-label">Loss</div>
+                <div class="info-value">${pct != null ? pct.toFixed(2) : '—'}%</div>
             </div>
         </div>
     </div>`;
@@ -256,8 +256,8 @@ function openModal(item) {
                 <div class="info-value">${item.ocitavanje_val ?? '—'}</div>
             </div>
             <div class="info-item full">
-                <div class="info-label">Load</div>
-                <div class="info-value ${pct >= 80 ? 'red' : pct >= 50 ? 'accent' : 'green'}">${pct}%</div>
+                <div class="info-label">Loss</div>
+                <div class="info-value ${pct >= 20 ? 'red' : pct >= 10 ? 'accent' : 'green'}">${pct != null ? pct.toFixed(2) : '—'}%</div>
                 <div class="modal-load-bar"><div class="modal-load-fill ${cls}" style="width:${pct}%"></div></div>
             </div>
         </div>

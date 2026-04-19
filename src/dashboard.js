@@ -25,6 +25,7 @@ async function getDashboardData() {
     }
 }
 
+
 /**
  * Endpoint: /map
  * Fetches the map visualization (HTML)

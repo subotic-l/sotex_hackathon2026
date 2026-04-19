@@ -266,6 +266,13 @@ def get_fider_details(conn, fider_id):
     try:
         cur.execute(query, (fider_id,))
         row = cur.fetchone()
+        if not row:
+            return None
+        cur.execute(
+            "SELECT TOP 1 LossPercentage FROM FeederLosses33 WHERE FeederId = %s ORDER BY GeneratedAt DESC",
+            (fider_id,)
+        )
+        loss_row = cur.fetchone()
     finally:
         cur.close()
 
@@ -324,6 +331,11 @@ def get_provodnik_details(conn, provodnik_id):
     try:
         cur.execute(query, (provodnik_id,))
         row = cur.fetchone()
+        cur.execute(
+            "SELECT TOP 1 LossPercentage FROM FeederLosses11 WHERE FeederId = %s ORDER BY GeneratedAt DESC",
+            (provodnik_id,)
+        )
+        loss_row = cur.fetchone()
     finally:
         cur.close()
 
