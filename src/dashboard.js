@@ -196,11 +196,15 @@ function renderLossChart(loss11, loss33) {
     legend.innerHTML = `
         <div style="display:flex;align-items:center;gap:6px;">
             <div style="width:10px;height:10px;background:#f2c94c;border-radius:2px;flex-shrink:0;"></div>
-            <span style="color:#ccc;font-size:10px;font-family:Montserrat,sans-serif;">Loss 33</span>
+            <span style="color:#ccc;font-size:10px;font-family:Montserrat,sans-serif;">Loss Feeders33</span>
         </div>
         <div style="display:flex;align-items:center;gap:6px;">
             <div style="width:10px;height:10px;background:rgba(180,180,180,0.5);border-radius:2px;flex-shrink:0;"></div>
-            <span style="color:#ccc;font-size:10px;font-family:Montserrat,sans-serif;">Loss 11</span>
+            <span style="color:#ccc;font-size:10px;font-family:Montserrat,sans-serif;">Loss Feeders11</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <div style="width:10px;height:3px;background:rgba(139,28,28,0.6);flex-shrink:0;"></div>
+            <span style="color:#ccc;font-size:10px;font-family:Montserrat,sans-serif;">Acceptable loss</span>
         </div>
     `;
 
@@ -296,13 +300,27 @@ async function loadLossGraph() {
     }
 }
 
+async function loadLossTotal() {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/loss_total`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        const el = document.getElementById('lossTotalValue');
+        if (el) el.textContent = Number(data.total_avg_loss_pct ?? 0).toFixed(2);
+    } catch (error) {
+        console.error('Failed to load loss total:', error);
+    }
+}
+
 /**
  * Initialize dashboard - load all data on page load
  */
 document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
     loadLossGraph();
+    loadLossTotal();
 
     setInterval(loadDashboardData, 30000);
     setInterval(loadLossGraph, 30000);
+    setInterval(loadLossTotal, 30000);
 });
