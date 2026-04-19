@@ -5,10 +5,12 @@ import time
 import schedule
 import subprocess
 import threading
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import pymssql
 from flask import Flask, jsonify, request
+
+from meter_history_job import ensure_history_table, process_snapshot_date, resolve_source_meter_column
 
 app = Flask(__name__)
 
@@ -148,9 +150,27 @@ def generate_map():
     subprocess.run(['python', 'visualization.py'])
     print("New map ready!")
 
+
+def run_daily_meter_history_snapshot(snapshot_date=None):
+    target_date = snapshot_date or (date.today() - timedelta(days=1))
+    print(f"Generating meter history snapshot for {target_date}...")
+
+    conn = connect_to_db()
+    try:
+        ensure_history_table(conn)
+        meter_id_column = resolve_source_meter_column(conn)
+        process_snapshot_date(conn, target_date, meter_id_column)
+    finally:
+        conn.close()
+
+    print("Meter history snapshot done!")
+
 def run_scheduler():
     generate_map()
+    run_daily_meter_history_snapshot()
+
     schedule.every(30).minutes.do(generate_map)
+    schedule.every().day.at("00:05").do(run_daily_meter_history_snapshot)
     
     while True:
         schedule.run_pending()

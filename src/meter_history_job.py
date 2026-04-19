@@ -339,6 +339,7 @@ def parse_args():
     parser.add_argument('--end', type=lambda value: datetime.strptime(value, '%Y-%m-%d').date(), help='Backfill end date (YYYY-MM-DD)')
     parser.add_argument('--date', type=lambda value: datetime.strptime(value, '%Y-%m-%d').date(), help='Process a single snapshot date (YYYY-MM-DD)')
     parser.add_argument('--reset', action='store_true', help='Delete existing history rows in target date range before processing')
+    parser.add_argument('--migrate-only', action='store_true', help='Create/ensure history table and exit')
     return parser.parse_args()
 
 
@@ -367,6 +368,10 @@ def main():
     conn = connect_to_db()
     try:
         ensure_history_table(conn)
+        if args.migrate_only:
+            print(f'[INFO] Migration completed for table {HISTORY_TABLE}.')
+            return
+
         meter_id_column = resolve_source_meter_column(conn)
         if args.reset:
             delete_history_range(conn, start_date, end_date)
