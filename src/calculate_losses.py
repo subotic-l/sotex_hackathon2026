@@ -1,6 +1,7 @@
 import pymssql
 import pandas as pd
 from datetime import date, timedelta
+import sys
 
 FEEDERS11_CONDITION = "1=1"
 FEEDERS33_CONDITION = """
@@ -10,9 +11,14 @@ FEEDERS33_CONDITION = """
 """
 DISTRIBUTION_SUBSTATION_CONDITION = "1=1"
 
-today = date.today()
-END_DATE = today.strftime('%Y-%m-%d')
-START_DATE = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+# Primeni end_date kao argument ili koristi danas
+if len(sys.argv) > 1:
+    end_date_arg = date.fromisoformat(sys.argv[1])
+else:
+    end_date_arg = date.today()
+
+END_DATE = end_date_arg.strftime('%Y-%m-%d')
+START_DATE = (end_date_arg - timedelta(days=30)).strftime('%Y-%m-%d')
 TOTAL_DAYS = 30
 
 def create_tables(conn):
@@ -222,7 +228,7 @@ if __name__ == "__main__":
 
 
         cursor = conn.cursor()
-        generated_at = today.strftime('%Y-%m-%d')
+        generated_at = END_DATE
 
         cursor.execute("DELETE FROM FeederLosses11 WHERE GeneratedAt = %s", (generated_at,))
         cursor.execute("DELETE FROM FeederLosses33 WHERE GeneratedAt = %s", (generated_at,))
