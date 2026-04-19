@@ -264,6 +264,13 @@ def get_fider_details(conn, fider_id):
     try:
         cur.execute(query, (fider_id,))
         row = cur.fetchone()
+        if not row:
+            return None
+        cur.execute(
+            "SELECT TOP 1 LossPercentage FROM FeederLosses33 WHERE FeederId = %s ORDER BY GeneratedAt DESC",
+            (fider_id,)
+        )
+        loss_row = cur.fetchone()
     finally:
         cur.close()
 
@@ -280,7 +287,7 @@ def get_fider_details(conn, fider_id):
         'MultiplierFactor': row[6],
         'LastVal': row[7],
         'LastTs': row[8].isoformat() if row[8] else None,
-        'LoadPercent': float(row[9]) if row[9] is not None else None,
+        'LossPercentage': float(loss_row[0]) if loss_row and loss_row[0] is not None else None, 
         'ChannelName': None,
         'Unit': None,
     }
@@ -319,6 +326,11 @@ def get_provodnik_details(conn, provodnik_id):
     try:
         cur.execute(query, (provodnik_id,))
         row = cur.fetchone()
+        cur.execute(
+            "SELECT TOP 1 LossPercentage FROM FeederLosses11 WHERE FeederId = %s ORDER BY GeneratedAt DESC",
+            (provodnik_id,)
+        )
+        loss_row = cur.fetchone()
     finally:
         cur.close()
 
@@ -337,7 +349,7 @@ def get_provodnik_details(conn, provodnik_id):
         'MultiplierFactor': row[8],
         'LastVal': row[9],
         'LastTs': row[10].isoformat() if row[10] else None,
-        'LoadPercent': float(row[11]) if row[11] is not None else None,
+        'LossPercentage': float(loss_row[0]) if loss_row and loss_row[0] is not None else None,
         'ChannelName': None,
         'Unit': None,
     }
@@ -657,26 +669,28 @@ def api_fideri():
     search_clause, search_params = build_search_clause(search_query, ['f.Name', 'f.Id', 'f.MeterId'])
     order_clause = build_order_clause(sort_mode)
     query = f'''
-    SELECT
-        f.Id,
-        f.Name,
-        f.MeterId,
-        lr.Ts AS LastReadingTs,
-        CASE
-            WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
-            ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
-        END AS LoadPercent
-    FROM Feeders33 f
-    OUTER APPLY (
-        SELECT TOP 1 t.Val, t.Ts
-        FROM MeterReadTfes t
-        WHERE t.Mid = f.MeterId
-        ORDER BY t.Ts DESC
-    ) lr
-    WHERE 1=1{search_clause}
-    ORDER BY {order_clause}
-    OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
-    '''
+        SELECT
+            f.Id,
+            f.Name,
+            f.MeterId,
+            lr.Ts AS LastReadingTs,
+            fl.LossPercentage AS LoadPercent
+        FROM Feeders33 f
+        OUTER APPLY (
+            SELECT TOP 1 t.Val, t.Ts
+            FROM MeterReadTfes t
+            WHERE t.Mid = f.MeterId
+            ORDER BY t.Ts DESC
+        ) lr
+        LEFT JOIN (
+            SELECT FeederId, LossPercentage
+            FROM FeederLosses33
+            WHERE GeneratedAt = CAST(GETDATE() AS DATE)
+        ) fl ON fl.FeederId = f.Id
+        WHERE 1=1{search_clause}
+        ORDER BY {order_clause}
+        OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
+        '''
     count_sql = f'SELECT COUNT(*) FROM Feeders33 f WHERE 1=1{search_clause}'
 
     try:
@@ -713,26 +727,28 @@ def api_provodnici():
     search_clause, search_params = build_search_clause(search_query, ['f.Name', 'f.Id', 'f.MeterId', 'f.SsId', 'f.Feeder33Id'])
     order_clause = build_order_clause(sort_mode)
     query = f'''
-    SELECT
-        f.Id,
-        f.Name,
-        f.MeterId,
-        lr.Ts AS LastReadingTs,
-        CASE
-            WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
-            ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
-        END AS LoadPercent
-    FROM Feeders11 f
-    OUTER APPLY (
-        SELECT TOP 1 t.Val, t.Ts
-        FROM MeterReadTfes t
-        WHERE t.Mid = f.MeterId
-        ORDER BY t.Ts DESC
-    ) lr
-    WHERE 1=1{search_clause}
-    ORDER BY {order_clause}
-    OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
-    '''
+        SELECT
+            f.Id,
+            f.Name,
+            f.MeterId,
+            lr.Ts AS LastReadingTs,
+            fl.LossPercentage AS LoadPercent
+        FROM Feeders11 f
+        OUTER APPLY (
+            SELECT TOP 1 t.Val, t.Ts
+            FROM MeterReadTfes t
+            WHERE t.Mid = f.MeterId
+            ORDER BY t.Ts DESC
+        ) lr
+        LEFT JOIN (
+            SELECT FeederId, LossPercentage
+            FROM FeederLosses11
+            WHERE GeneratedAt = CAST(GETDATE() AS DATE)
+        ) fl ON fl.FeederId = f.Id
+        WHERE 1=1{search_clause}
+        ORDER BY {order_clause}
+        OFFSET %s ROWS FETCH NEXT %s ROWS ONLY;
+        '''
     count_sql = f'SELECT COUNT(*) FROM Feeders11 f WHERE 1=1{search_clause}'
 
     try:
