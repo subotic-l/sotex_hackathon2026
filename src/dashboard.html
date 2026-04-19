@@ -182,9 +182,13 @@
         }
 
         /* Today visitors & Scatter — combined */
-        .card-visitors,
         .card-scatter {
             background: #f2c94c;
+            flex: 1;
+        }
+
+        .card-visitors {
+            background: #2a2a2a;
             flex: 1;
         }
 
@@ -193,9 +197,12 @@
             flex: 0.8;
         }
 
-        .card-visitors .card-title,
-        .card-scatter .card-title { 
-            color: #fff; 
+        .card-visitors .card-title {
+            color: #ffffff;
+        }
+
+        .card-scatter .card-title {
+            color: #fff;
         }
 
         .card-visitors .placeholder,
@@ -353,8 +360,11 @@
                 <div class="col-right">
 
                     <!-- Network KPI Overview -->
-                    <div class="card card-visitors">
+                    <div class="card card-visitors" style="display:flex;flex-direction:column;">
                         <div class="card-title">Network KPI Overview</div>
+                        <div style="flex:1;position:relative;min-height:0;">
+                            <canvas id="lossChart"></canvas>
+                        </div>
                     </div>
 
                 </div>
@@ -397,6 +407,7 @@
 
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
     <script src="dashboard.js"></script>
 
 </body>

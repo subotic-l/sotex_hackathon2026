@@ -143,14 +143,166 @@ async function loadMapVisualization(targetSelector = '.card-map .placeholder') {
     }
 }
 
+let lossChartInstance = null;
+
+async function getLossGraphData() {
+    const response = await fetch(`${API_BASE_URL}/api/loss_graph`);
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.json();
+}
+
+function makeStripePattern(color) {
+    const size = 10;
+    const patCanvas = document.createElement('canvas');
+    patCanvas.width = size;
+    patCanvas.height = size;
+    const ctx = patCanvas.getContext('2d');
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, size, size);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, size);
+    ctx.lineTo(size, 0);
+    ctx.stroke();
+    return patCanvas;
+}
+
+function renderLossChart(loss11, loss33) {
+    const canvas = document.getElementById('lossChart');
+    if (!canvas) return;
+
+    const container = canvas.parentElement;
+    container.style.position = 'relative';
+    let legend = container.querySelector('.loss-legend-overlay');
+    if (!legend) {
+        legend = document.createElement('div');
+        legend.className = 'loss-legend-overlay';
+        legend.style.cssText = [
+            'position:absolute',
+            'top:10px',
+            'right:12px',
+            'display:flex',
+            'flex-direction:column',
+            'gap:5px',
+            'pointer-events:none',
+            'z-index:10',
+            'background:rgba(40,40,40,0.75)',
+            'border-radius:6px',
+            'padding:6px 10px',
+        ].join(';');
+        container.appendChild(legend);
+    }
+    legend.innerHTML = `
+        <div style="display:flex;align-items:center;gap:6px;">
+            <div style="width:10px;height:10px;background:#f2c94c;border-radius:2px;flex-shrink:0;"></div>
+            <span style="color:#ccc;font-size:10px;font-family:Montserrat,sans-serif;">Loss 33</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <div style="width:10px;height:10px;background:rgba(180,180,180,0.5);border-radius:2px;flex-shrink:0;"></div>
+            <span style="color:#ccc;font-size:10px;font-family:Montserrat,sans-serif;">Loss 11</span>
+        </div>
+    `;
+
+    const ctx = canvas.getContext('2d');
+    const stripePattern = ctx.createPattern(makeStripePattern('#f2c94c'), 'repeat');
+
+    if (lossChartInstance) lossChartInstance.destroy();
+
+    const refLinePlugin = {
+        id: 'refLine',
+        afterDraw(chart) {
+            const { ctx, chartArea: { left, right }, scales: { y } } = chart;
+            const yPos = y.getPixelForValue(10);
+            ctx.save();
+            ctx.beginPath();
+            ctx.moveTo(left, yPos);
+            ctx.lineTo(right, yPos);
+            ctx.strokeStyle = 'rgba(139, 28, 28, 0.6)';
+            ctx.lineWidth = 3;
+            ctx.setLineDash([]);
+            ctx.stroke();
+            ctx.restore();
+        }
+    };
+
+    lossChartInstance = new Chart(ctx, {
+        type: 'bar',
+        plugins: [refLinePlugin],
+        data: {
+            labels: [''],
+            datasets: [
+                {
+                    data: [loss33],
+                    backgroundColor: stripePattern,
+                    borderColor: '#f2c94c',
+                    borderWidth: 1,
+                    borderRadius: 3,
+                    barPercentage: 0.35,
+                    categoryPercentage: 0.5,
+                },
+                {
+                    data: [loss11],
+                    backgroundColor: 'rgba(180,180,180,0.35)',
+                    borderColor: 'rgba(180,180,180,0.5)',
+                    borderWidth: 1,
+                    borderRadius: 3,
+                    barPercentage: 0.35,
+                    categoryPercentage: 0.5,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.parsed.y.toFixed(2)}%`
+                    },
+                    backgroundColor: '#c8b8f0',
+                    titleColor: '#1a1a1a',
+                    bodyColor: '#1a1a1a',
+                    displayColors: false,
+                    padding: 8,
+                    cornerRadius: 6,
+                }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { display: false },
+                    border: { display: false },
+                },
+                y: {
+                    min: 0,
+                    max: 100,
+                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    ticks: { color: '#aaa', font: { size: 11 }, stepSize: 20 },
+                    border: { display: false },
+                }
+            }
+        }
+    });
+}
+
+async function loadLossGraph() {
+    try {
+        const data = await getLossGraphData();
+        renderLossChart(data.feeder11_avg_loss_pct, data.feeder33_avg_loss_pct);
+    } catch (error) {
+        console.error('Failed to load loss graph:', error);
+    }
+}
+
 /**
  * Initialize dashboard - load all data on page load
  */
 document.addEventListener('DOMContentLoaded', function() {
     loadDashboardData();
-    // Optional: Load map if needed
-    // loadMapVisualization();
+    loadLossGraph();
 
-    // Optional: Set up auto-refresh (every 30 seconds)
     setInterval(loadDashboardData, 30000);
+    setInterval(loadLossGraph, 30000);
 });
