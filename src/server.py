@@ -53,8 +53,8 @@ def get_latest_snapshot_date(conn):
         cur.close()
 
 
-def get_dashboard_payload(conn):
-    latest_snapshot = get_latest_snapshot_date(conn)
+def get_dashboard_payload(conn, snapshot_date=None):
+    latest_snapshot = snapshot_date or get_latest_snapshot_date(conn)
     if latest_snapshot is None:
         return FALLBACK_DASHBOARD
 
@@ -208,10 +208,17 @@ def map_view():
 
 @app.route('/api/dashboard-data')
 def dashboard_data():
+    snapshot_date_raw = request.args.get('date')
+    snapshot_date = None
+    if snapshot_date_raw:
+        try:
+            snapshot_date = datetime.strptime(snapshot_date_raw, '%Y-%m-%d').date()
+        except ValueError:
+            pass
     try:
         conn = connect_to_db()
         try:
-            return jsonify(get_dashboard_payload(conn))
+            return jsonify(get_dashboard_payload(conn, snapshot_date=snapshot_date))
         finally:
             conn.close()
     except Exception:

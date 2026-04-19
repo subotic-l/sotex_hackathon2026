@@ -11,7 +11,10 @@ const API_BASE_URL = '';
  */
 async function getDashboardData() {
     try {
-        const response = await fetch(`${API_BASE_URL}/api/dashboard-data`);
+        const d = new Date();
+        d.setDate(d.getDate() - 5);
+        const dateStr = d.toISOString().slice(0, 10);
+        const response = await fetch(`${API_BASE_URL}/api/dashboard-data?date=${dateStr}`);
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}`);
         }
