@@ -239,6 +239,7 @@ def get_fider_details(conn, fider_id):
         f.Id,
         f.Name,
         f.TsId,
+        ts.Name AS TsName,
         f.MeterId,
         f.NameplateRating,
         m.MSN,
@@ -251,6 +252,7 @@ def get_fider_details(conn, fider_id):
         END AS LoadPercent
     FROM Feeders33 f
     LEFT JOIN Meters m ON m.Id = f.MeterId
+    LEFT JOIN TransmissionStations ts ON ts.Id = f.TsId
     OUTER APPLY (
         SELECT TOP 1 t.Val, t.Ts
         FROM MeterReadTfes t
@@ -274,13 +276,14 @@ def get_fider_details(conn, fider_id):
         'Id': row[0],
         'Name': row[1],
         'TsId': row[2],
-        'MeterId': row[3],
-        'NameplateRating': row[4],
-        'MSN': row[5],
-        'MultiplierFactor': row[6],
-        'LastVal': row[7],
-        'LastTs': row[8].isoformat() if row[8] else None,
-        'LoadPercent': float(row[9]) if row[9] is not None else None,
+        'TsName': row[3],
+        'MeterId': row[4],
+        'NameplateRating': row[5],
+        'MSN': row[6],
+        'MultiplierFactor': row[7],
+        'LastVal': row[8],
+        'LastTs': row[9].isoformat() if row[9] else None,
+        'LoadPercent': float(row[10]) if row[10] is not None else None,
         'ChannelName': None,
         'Unit': None,
     }
@@ -292,6 +295,7 @@ def get_provodnik_details(conn, provodnik_id):
         f.Id,
         f.Name,
         f.TsId,
+        ts.Name AS TsName,
         f.SsId,
         f.Feeder33Id,
         f.MeterId,
@@ -306,6 +310,7 @@ def get_provodnik_details(conn, provodnik_id):
         END AS LoadPercent
     FROM Feeders11 f
     LEFT JOIN Meters m ON m.Id = f.MeterId
+    LEFT JOIN TransmissionStations ts ON ts.Id = f.TsId
     OUTER APPLY (
         SELECT TOP 1 t.Val, t.Ts
         FROM MeterReadTfes t
@@ -329,15 +334,16 @@ def get_provodnik_details(conn, provodnik_id):
         'Id': row[0],
         'Name': row[1],
         'TsId': row[2],
-        'SsId': row[3],
-        'Feeder33Id': row[4],
-        'MeterId': row[5],
-        'NameplateRating': row[6],
-        'MSN': row[7],
-        'MultiplierFactor': row[8],
-        'LastVal': row[9],
-        'LastTs': row[10].isoformat() if row[10] else None,
-        'LoadPercent': float(row[11]) if row[11] is not None else None,
+        'TsName': row[3],
+        'SsId': row[4],
+        'Feeder33Id': row[5],
+        'MeterId': row[6],
+        'NameplateRating': row[7],
+        'MSN': row[8],
+        'MultiplierFactor': row[9],
+        'LastVal': row[10],
+        'LastTs': row[11].isoformat() if row[11] else None,
+        'LoadPercent': float(row[12]) if row[12] is not None else None,
         'ChannelName': None,
         'Unit': None,
     }
@@ -396,8 +402,11 @@ def fetch_paginated_assets(conn, from_sql, count_sql, params, page, page_size, t
             'id': row[0],
             'naziv': row[1],
             'meter_id': row[2],
-            'ocitavanje_ts': row[3].isoformat() if row[3] else None,
-            'opterecenje_pct': float(row[4]) if row[4] is not None else None,
+            'ocitavanje_val': float(row[3]) if row[3] is not None else None,
+            'ocitavanje_ts': row[4].isoformat() if row[4] else None,
+            'ts_id': row[5] if len(row) > 5 else None,
+            'ts_name': row[6] if len(row) > 6 else None,
+            'opterecenje_pct': float(row[7]) if len(row) > 7 and row[7] is not None else None,
             'tip': tip,
         })
 
@@ -600,12 +609,16 @@ def api_fideri():
         f.Id,
         f.Name,
         f.MeterId,
+        lr.Val AS LastReadingVal,
         lr.Ts AS LastReadingTs,
+        f.TsId,
+        ts.Name AS TsName,
         CASE
             WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
             ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
         END AS LoadPercent
     FROM Feeders33 f
+    LEFT JOIN TransmissionStations ts ON ts.Id = f.TsId
     OUTER APPLY (
         SELECT TOP 1 t.Val, t.Ts
         FROM MeterReadTfes t
@@ -656,12 +669,16 @@ def api_provodnici():
         f.Id,
         f.Name,
         f.MeterId,
+        lr.Val AS LastReadingVal,
         lr.Ts AS LastReadingTs,
+        f.TsId,
+        ts.Name AS TsName,
         CASE
             WHEN f.NameplateRating IS NULL OR f.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
             ELSE ROUND((lr.Val / f.NameplateRating) * 100.0, 2)
         END AS LoadPercent
     FROM Feeders11 f
+    LEFT JOIN TransmissionStations ts ON ts.Id = f.TsId
     OUTER APPLY (
         SELECT TOP 1 t.Val, t.Ts
         FROM MeterReadTfes t
@@ -712,7 +729,10 @@ def api_potrosaci():
         d.Id,
         d.Name,
         d.MeterId,
+        lr.Val AS LastReadingVal,
         lr.Ts AS LastReadingTs,
+        d.Feeder11Id,
+        d.Feeder33Id,
         CASE
             WHEN d.NameplateRating IS NULL OR d.NameplateRating = 0 OR lr.Val IS NULL THEN NULL
             ELSE ROUND((lr.Val / d.NameplateRating) * 100.0, 2)

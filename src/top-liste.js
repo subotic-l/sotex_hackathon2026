@@ -3,19 +3,17 @@ const API_BASE = '';
 const ENDPOINT_BY_TAB = {
     fideri: '/api/fideri',
     provodnici: '/api/provodnici',
-    potrosaci: '/api/potrosaci',
 };
 
 const DETAIL_ENDPOINT_BY_TIP = {
     fider: (id) => `/api/fideri/${id}/details`,
     provodnik: (id) => `/api/provodnici/${id}/details`,
-    potrosac: (id) => `/api/dt/${id}/details`,
 };
 
 let allItems = [];
 let activeTab = 'fideri';
 let searchQuery = '';
-let sortMode = 'najnoviji';
+let sortMode = 'naziv_az';
 let currentPage = 1;
 let totalPages = 1;
 let totalItems = 0;
@@ -69,7 +67,7 @@ function badgeClass(tip) {
 }
 
 function badgeLabel(tip) {
-    return { fider: 'Feeder 33kV', provodnik: 'Feeder 11kV', potrosac: 'Substation' }[tip] || tip;
+    return { fider: 'Feeder 33kV', provodnik: 'Feeder 11kV' }[tip] || tip;
 }
 
 function loadClass(pct) {
@@ -113,8 +111,15 @@ function render() {
     grid.innerHTML = items.map((item) => {
         const pct = item.opterecenje_pct ?? 0;
         const cls = loadClass(pct);
+        const readingValue = item.ocitavanje_val != null ? `${item.ocitavanje_val}` : '—';
+        const tsLabel = item.ts_id != null
+            ? `Ts: ${item.ts_id}${item.ts_name ? ` · ${item.ts_name}` : ''}`
+            : '';
         const meterLine = item.meter_id != null
             ? `<div class="meta-row"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="18" rx="2"/><path d="M8 10h8M8 14h5"/></svg>Meter ID: ${item.meter_id}</div>`
+            : '';
+        const tsLine = tsLabel
+            ? `<div class="meta-row"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>${tsLabel}</div>`
             : '';
         return `
         <div class="card" data-id="${item.id}" data-tip="${item.tip}">
@@ -127,6 +132,7 @@ function render() {
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
                     Last reading: ${fmtTime(item.ocitavanje_ts)}
                 </div>
+                ${tsLine}
             </div>
             <div class="card-footer">
                 <div class="load-bar-wrap">
@@ -176,6 +182,7 @@ function render() {
                     feeder33_id: details.Feeder33Id,
                     ss_id: details.SsId,
                     ts_id: details.TsId,
+                    ts_name: details.TsName,
                     latitude: details.Latitude,
                     longitude: details.Longitude,
                 };
@@ -244,6 +251,10 @@ function openModal(item) {
                 <div class="info-label">Last reading</div>
                 <div class="info-value">${fmtTime(item.ocitavanje_ts)}</div>
             </div>
+            <div class="info-item">
+                <div class="info-label">Reading value</div>
+                <div class="info-value">${item.ocitavanje_val ?? '—'}</div>
+            </div>
             <div class="info-item full">
                 <div class="info-label">Load</div>
                 <div class="info-value ${pct >= 80 ? 'red' : pct >= 50 ? 'accent' : 'green'}">${pct}%</div>
@@ -266,8 +277,12 @@ function openModal(item) {
                 <div class="info-value">${item.multiplier_factor ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Transmission Station (TsId)</div>
+                <div class="info-label">Transmission Station Id</div>
                 <div class="info-value">${item.ts_id ?? '—'}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Transmission Station Name</div>
+                <div class="info-value">${item.ts_name ?? '—'}</div>
             </div>
         </div>
     </div>`;
@@ -287,7 +302,7 @@ function openModal(item) {
                 <div class="info-value">${item.multiplier_factor ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Substation (SsId)</div>
+                <div class="info-label">Substation Id</div>
                 <div class="info-value">${item.ss_id ?? '—'}</div>
             </div>
             <div class="info-item">
@@ -295,8 +310,12 @@ function openModal(item) {
                 <div class="info-value">${item.feeder33_id ?? '—'}</div>
             </div>
             <div class="info-item">
-                <div class="info-label">Transmission Station (TsId)</div>
+                <div class="info-label">Transmission Station Id</div>
                 <div class="info-value">${item.ts_id ?? '—'}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Transmission Station Name</div>
+                <div class="info-value">${item.ts_name ?? '—'}</div>
             </div>
         </div>
     </div>`;
