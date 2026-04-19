@@ -4,11 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StatPRO Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            font-family: 'Segoe UI', sans-serif;
+            font-family: 'Montserrat', sans-serif;
             background: linear-gradient(110deg, #f0f0f0 0%, #f5e8b6 100%);
             display: flex;
             height: 100vh;
@@ -248,21 +249,21 @@
             flex: 1;
         }
 
+        .pie-wrap {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.15));
+        }
+
         .pie-chart {
             width: 150px;
             height: 150px;
             border-radius: 50%;
-            background: conic-gradient(#2f7d32 0deg, #2f7d32 0deg, #e8e8e8 0deg, #e8e8e8 360deg);
-            position: relative;
-            transition: background 0.3s ease;
-        }
-
-        .pie-chart::after {
-            content: '';
-            position: absolute;
-            inset: 18px;
-            background: #fff;
-            border-radius: 50%;
+            background: conic-gradient(#f2c94c 0deg, #555 0deg);
+            -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 16px), black calc(100% - 16px));
+            mask: radial-gradient(farthest-side, transparent calc(100% - 16px), black calc(100% - 16px));
+            transition: background 0.4s ease;
         }
 
         .pie-center-text {
@@ -271,16 +272,23 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
+            font-size: 26px;
             font-weight: 700;
             color: #1f1f1f;
-            z-index: 1;
         }
 
         .effectiveness-caption {
             font-size: 13px;
             color: #555;
             text-align: center;
+        }
+
+        .pie-info {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-top: 8px;
+            font-weight: 500;
         }
     </style>
 </head>
@@ -344,29 +352,9 @@
                 <!-- Right column -->
                 <div class="col-right">
 
-                    <!-- Today visitors & Scatter combined -->
+                    <!-- Network KPI Overview -->
                     <div class="card card-visitors">
                         <div class="card-title">Network KPI Overview</div>
-                        <div class="metric-grid">
-                            <div class="metric-item">
-                                <div class="metric-label">Active Meters</div>
-                                <div class="metric-value" id="numActiveMeters">-</div>
-                            </div>
-                            <div class="metric-item">
-                                <div class="metric-label">Down Meters</div>
-                                <div class="metric-value" id="numDownMeters">-</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card card-effectiveness">
-                        <div class="card-title">Network Effectivness</div>
-                        <div class="effectiveness-wrap">
-                            <div class="pie-chart" id="networkEffectivenessPie">
-                                <div class="pie-center-text" id="networkEffectivnessPercentage">-</div>
-                            </div>
-                            <div class="effectiveness-caption">Aktivna mreza u odnosu na ukupan broj brojila</div>
-                        </div>
                     </div>
 
                 </div>
@@ -380,14 +368,28 @@
                     <div class="placeholder"></div>
                 </div>
 
-                <div class="card card-bottom">
-                    <div class="card-title">Audience by Age</div>
-                    <div class="placeholder"></div>
-                </div>
-
-                <div class="card card-bottom">
-                    <div class="card-title">Statistic By Gender</div>
-                    <div class="placeholder"></div>
+                <div class="card card-bottom" style="flex:2; display:flex; flex-direction:row; gap:16px;">
+                    <div style="flex:1; display:flex; flex-direction:column;">
+                        <div class="card-title">Network Effectiveness</div>
+                        <div class="metric-grid">
+                            <div class="metric-item" style="background:#f2c94c;">
+                                <div class="metric-label" style="color:#555;">Active Meters</div>
+                                <div class="metric-value" id="numActiveMeters" style="color:#fff;">-</div>
+                            </div>
+                            <div class="metric-item" style="background:#555;">
+                                <div class="metric-label" style="color:#ccc;">Down Meters</div>
+                                <div class="metric-value" id="numDownMeters" style="color:#fff;">-</div>
+                            </div>
+                        </div>
+                    </div>
+<div style="flex:1; display:flex; flex-direction:column;">
+                        <div class="effectiveness-wrap">
+                            <div class="pie-wrap">
+                                <div class="pie-chart" id="genderPie"></div>
+                                <div class="pie-center-text" id="genderPercentage">-</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
             </div>

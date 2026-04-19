@@ -7,8 +7,10 @@ import subprocess
 import threading
 from datetime import datetime, timedelta
 from flask import Flask, jsonify
+from flask_cors import CORS
 
 app = Flask(__name__)
+CORS(app)
 
 @app.after_request
 def add_cors(response):
@@ -40,6 +42,11 @@ worker.start()
 def dashboard():
     with open(os.path.join(os.path.dirname(__file__), 'dashboard.html'), encoding='utf-8') as f:
         return f.read()
+
+@app.route('/dashboard.js')
+def dashboard_js():
+    with open(os.path.join(os.path.dirname(__file__), 'dashboard.js'), encoding='utf-8') as f:
+        return f.read(), 200, {'Content-Type': 'application/javascript'}
 
 @app.route('/map')
 def map_view():

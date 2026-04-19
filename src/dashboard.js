@@ -3,7 +3,7 @@
  * Connects to server.py endpoints
  */
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = '';
 
 /**
  * Endpoint: /api/dashboard-data
@@ -46,8 +46,8 @@ async function getMapVisualization() {
 function updateDashboardMetrics(data) {
     const activeEl = document.getElementById('numActiveMeters');
     const downEl = document.getElementById('numDownMeters');
-    const effectivenessEl = document.getElementById('networkEffectivnessPercentage');
-    const pieEl = document.getElementById('networkEffectivenessPie');
+    const genderPieEl = document.getElementById('genderPie');
+    const genderPercentageEl = document.getElementById('genderPercentage');
 
     // Update active meters
     if (activeEl) {
@@ -61,18 +61,20 @@ function updateDashboardMetrics(data) {
         downEl.classList.remove('error');
     }
 
-    // Update network effectiveness percentage and pie chart
+    // Update gender pie chart with effectiveness percentage
     const effectiveness = Number(data.NetworkEffectivnessPercentage ?? 0) * 100;
-    if (effectivenessEl) {
-        effectivenessEl.textContent = effectiveness.toFixed(1) + '%';
-        effectivenessEl.classList.remove('error');
+    if (genderPercentageEl) {
+        genderPercentageEl.textContent = effectiveness.toFixed(1) + '%';
     }
 
-    if (pieEl) {
+    if (genderPieEl) {
         const clamped = Math.max(0, Math.min(100, effectiveness));
         const degrees = (clamped / 100) * 360;
-        pieEl.style.background =
-            `conic-gradient(#2f7d32 0deg, #2f7d32 ${degrees}deg, #e8e8e8 ${degrees}deg, #e8e8e8 360deg)`;
+        const gap = 3;
+        const g1 = Math.max(gap, degrees - gap);
+        const g2 = Math.min(360 - gap, degrees + gap);
+        genderPieEl.style.background =
+            `conic-gradient(transparent 0deg, transparent ${gap}deg, #f2c94c ${gap}deg, #f2c94c ${g1}deg, transparent ${g1}deg, transparent ${g2}deg, #555 ${g2}deg, #555 ${360 - gap}deg, transparent ${360 - gap}deg)`;
     }
 }
 
@@ -83,8 +85,8 @@ function updateDashboardMetrics(data) {
 function setDashboardError(message = 'Nije uspelo ucitavanje podataka') {
     const activeEl = document.getElementById('numActiveMeters');
     const downEl = document.getElementById('numDownMeters');
-    const effectivenessEl = document.getElementById('networkEffectivnessPercentage');
-    const pieEl = document.getElementById('networkEffectivenessPie');
+    const genderPieEl = document.getElementById('genderPie');
+    const genderPercentageEl = document.getElementById('genderPercentage');
 
     if (activeEl) {
         activeEl.textContent = message;
@@ -96,13 +98,12 @@ function setDashboardError(message = 'Nije uspelo ucitavanje podataka') {
         downEl.classList.add('error');
     }
 
-    if (effectivenessEl) {
-        effectivenessEl.textContent = message;
-        effectivenessEl.classList.add('error');
+    if (genderPercentageEl) {
+        genderPercentageEl.textContent = '-';
     }
 
-    if (pieEl) {
-        pieEl.style.background = 'conic-gradient(#e8e8e8 0deg, #e8e8e8 360deg)';
+    if (genderPieEl) {
+        genderPieEl.style.background = 'conic-gradient(#555 0deg, #555 360deg)';
     }
 }
 
